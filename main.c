@@ -9,6 +9,7 @@ struct Piece {
     int location; //Tracks which cell the piece is curerntly on
     int direction; //Tracks is the player should move clockwise or anticlockwise
     bool isAtBase; //Tracks if the piece is drawn or at the base. 
+    char pieceId[2];
 };
 
 struct Player {
@@ -33,7 +34,6 @@ int shouldMoveClockwise(){
     int direction = (rand() % 2);
     return (direction == 0? 1 : -1);
 }
-
 
 // Returns the playing order based on the value of the dice roll
 //Input  player parameters in clockwise order starting from yellow
@@ -115,53 +115,60 @@ void drawPlayer(struct Player *player){
         if (!pieces[i]->isAtBase) {
             pieces[i]->isAtBase = true; //Sets base to true
             pieces[i]->direction = shouldMoveClockwise(); //Sets piece direction
+            printf("\n%s player moves piece %s to base\n", player->color, pieces[i]->pieceId);
             return;
         }
     }
 }
 
-//Move  player piece based on the value he rolled and his direction of movement
-void movePiece(int steps, struct Piece *piece){
+//Move  player piece based on the value rolled and the direction of movement
+void movePiece(int steps, struct Piece *piece, char color[10]){
+    int prevLocation = piece->location;
     piece->location = (52 + piece->location + piece->direction * steps) % 52;
+
+    printf("\n%s moves piece %s from location L%d to L%d by %d units in ", color,piece->pieceId, prevLocation, piece->location, steps);
+    piece->direction == 1? printf("Clockwise Direction"):printf("AntiClockwise Direction \n");
 }
 
-void moveYellowPlayer(struct Player *player) {
+
+bool hasPlayerWon(struct Player *yellow,struct Player *blue, struct Player *red, struct Player *green){
+
+    struct Player* players[4] = {&yellow, &blue, &red, &green}; 
+}
+
+void startGame(){
+
 }
 
 void playLudo() {
+    srand(time(NULL)); // Seed the random number generator
     // Initialize players
     struct Player yellow = {
-        {0, 1,false},{0,1,false},{0,1,false},{0,1,false}, //Setting location, base and
+        {0, 1, false, "P1"}, {0, 1, false, "P2"}, {0, 1, false, "P3"}, {0, 1, false, "P4"}, //Setting location, base, and name
         0, "Yellow" //Setting playorder and color
     };
     struct Player blue = {
-        {13,  1, false},{13, 1, false },{13, 1, false},{13, 1, false},
+        {13, 1, false, "P1"}, {13, 1, false, "P2"}, {13, 1, false, "P3"}, {13, 1, false, "P4"},
         0, "Blue"
     };
     struct Player red = {
-        {26,  1, false},{26, 1, false },{26, 1, false},{26, 1, false},
+        {26, 1, false, "P1"}, {26, 1, false, "P2"}, {26, 1, false, "P3"}, {26, 1, false, "P4"},
         0, "Red"
     };
     struct Player green = {
-        {39,  1, false},{39, 1, false},{39, 1, 0},{39, 1, false}, 
+        {39, 1, false, "P1"}, {39, 1, false, "P2"}, {39, 1, false, "P3"}, {39, 1, false, "P4"},
         0, "Green"
     };
 
-    // Assign play order
-    //Player parameters are input in clockwise ordrer starting from yellow
     playerOrder(&yellow, &blue, &red, &green);
-
     drawPlayer(&yellow);
-
-    movePiece(6,&yellow.piece1);
-    printf("Piece 1 of yellow has moved to: %d\n", yellow.piece1.location);
+    movePiece(6, &yellow.piece1, yellow.color);
 
     printf("\n");
 }
 
 //-----------Main Function------------------//
 int main() {
-    srand(time(NULL)); // Seed the random number generator
     playLudo();
     return 0;
 }
