@@ -5,10 +5,12 @@
 #include <string.h>
 
 //--------Defining Structures-----------//
+int test = 0;
 
 struct Piece {
     int location; //Tracks which cell the piece is curerntly on
     int direction; //Tracks is the player should move clockwise or anticlockwise
+    int steps; // Keeps track of the steps the player has taken with respective to reaching the home straight---- 54 in anticlockwise direction and 52 in clockwise direction
     bool isAtBase; //Tracks if the piece is drawn or at the base. 
     char pieceId[2];
 };
@@ -152,6 +154,7 @@ void drawPiece(struct Player *player){
         if (pieces[i]->isAtBase) {
             pieces[i]->isAtBase = false; //Sets isAtBase to false
             pieces[i]->direction = shouldMoveClockwise(); //Sets piece direction
+            pieces[i]->steps = 1;
 
             printf("%s player moves piece %s to the starting point.\n", player->color, pieces[i]->pieceId);
             
@@ -166,6 +169,7 @@ void drawPiece(struct Player *player){
 void movePiece(int steps, struct Piece *piece, char color[10]){
     int prevLocation = piece->location;
     piece->location = (52 + piece->location + piece->direction * steps) % 52;
+    piece->steps = piece->steps + steps;
 
     printf("%s moves piece %s from location L%d to L%d by %d units in ", color,piece->pieceId, prevLocation, piece->location, steps);
     piece->direction == 1? printf("Clockwise Direction\n\n"):printf("AntiClockwise Direction \n\n");
@@ -188,54 +192,120 @@ bool canBlock(struct Player *player, int steps){
     return false;
 }
 
+//Checks if the opponents have created a block and whether the piece cqn move forward or not
+bool isPathBlocked(){
+    return false;
+}
+
 //Creates a block
 void createBlock(int steps){
 
 }
 
-//Checks if a piece of another player is caputrable
-bool canCapture(){
+//Checks if a piece of another player can be captured
+bool canCapture(struct Player *currentPlayer, struct Player *opponent, int steps) {
 
+    struct Piece* currentPieces[4] = {&currentPlayer->piece1, &currentPlayer->piece2, &currentPlayer->piece3, &currentPlayer->piece4};
+
+    struct Piece* opponentPieces[4] = {&opponent->piece1, &opponent->piece2, &opponent->piece3, &opponent->piece4};
+
+    for(int i =0; i<4; i++){
+        for(int j=0; j <4; j++){
+
+            int newLocation = (52+ currentPieces[i]->location + (steps * currentPieces[i]->direction)) %52;
+
+            if((newLocation == opponentPieces[j]->location) && (opponentPieces[j]->steps > 1) ){
+                printf("can capture\n");
+                return true;
+            }
+        }
+    }
     return false;
 }
 
-//Captures the piece of another player
-void capturePiece(struct Player *player){
+// Function to capture opponent's pieces
+void capturePiece(struct Player *players[4], struct Player *currentPlayer, int steps) {
+    struct Piece* currentPlayerPieces[4] = {&currentPlayer->piece1, &currentPlayer->piece2, &currentPlayer->piece3, &currentPlayer->piece4};
 
+    //Looping thorugh all the opponent players
+    for(int i=0; i<4; i++){
+        if(players[i] != currentPlayer){
+            struct Piece* opponentPieces[4] = {&players[i]->piece1, &players[i]->piece2, &players[i]->piece3, &players[i]->piece4};
+            
+            //Looping through the all the pieces of the current Player
+            for(int j=0; j<4; j++){
+                int prevLocation = currentPlayerPieces[j]->location;
+                int newLocation =  (52 + currentPlayerPieces[j]->location + (steps * currentPlayerPieces[j]->direction)) % 52;
+
+                //Looping thorugh all the pieces of the opponent 
+                for(int k=0; k<4; k++){
+                    if(((newLocation == opponentPieces[k]->location) && opponentPieces[k]->steps > 1)){
+
+                        //Moving the current player's piece to capture the opponent's piece
+                        currentPlayerPieces[j]->location = newLocation;
+                        currentPlayerPieces[j]->steps += steps;
+                        printf("%s piece %s lands on square L%d, captures %s piece %s and returns it to base", currentPlayer->color, currentPlayerPieces[j]->pieceId, newLocation, players[i]->color, opponentPieces[k]->pieceId);
+
+                        //Resetting the opponent's piece that was captured
+                        opponentPieces[k]->isAtBase = true;
+                        opponentPieces[k]->location = 0;
+                        opponentPieces[k]->steps = 0;
+
+                        test = 1;
+
+                        return;
+                    }
+                }
+            }
+        }
+    }
 }
 
 //Defining behaviour for each colored player
 
 //Yellow Player Behaviour
-void yellowPlayerBehaviour(struct Player *yellow, int consecutiveSixes){
-
+void yellowPlayerBehaviour(struct Player *yellow, int consecutiveSixes, struct Player* players[4]) {
     int dieValue = rollDie();
     printf("Yellow has rolled %d\n", dieValue);
 
-    //Checks if there are any players in the base and moves them to the starting point. If there arent any, then moves the piece
-    if(dieValue == 6){
+    bool capturePossible = false;
+    for (int i = 0; i < 4; i++) {
+        if (players[i] != yellow && canCapture(yellow, players[i], dieValue) ) {
+            capturePossible = true;
+            break;
+        }
+    }
+
+    if (dieValue == 6) {
         consecutiveSixes++;
-        
-        //Ends the players turn and passes it to the next player if he rolls a 6 for the third time
+
         if (consecutiveSixes == 3) {
             printf("Yellow rolled three consecutive 6s! Turn is passed to the next player.\n");
-            return; // Ends the player's turn
+            return;
         }
 
-        if(arePiecesAtBase(yellow)){
+        if (arePiecesAtBase(yellow)) {
             drawPiece(yellow);
-            yellowPlayerBehaviour(yellow, consecutiveSixes);
-        }else{
-            movePiece(dieValue, &yellow->piece1, yellow->color);
-            yellowPlayerBehaviour(yellow, consecutiveSixes);
-        } 
 
-    }else{
-        if(!yellow->piece1.isAtBase){
-        movePiece(dieValue, &yellow->piece1, yellow->color);
+        } else if (capturePossible) {
+            capturePiece(players, yellow, dieValue);
+
+        } else {
+            movePiece(dieValue, &yellow->piece1, yellow->color);
+        }
+        yellowPlayerBehaviour(yellow, consecutiveSixes, players);
+
+    } else {
+        if (!yellow->piece1.isAtBase) {
+            if (capturePossible) {
+                capturePiece(players, yellow, dieValue);
+            } else {
+                movePiece(dieValue, &yellow->piece1, yellow->color);
+            }
         }
     }
 }
+
 
 void bluePlayerBehaviour(){
     printf("This is the blue player's AI\n");
@@ -250,10 +320,11 @@ void greenPlayerBehaviour(){
 }
 
 //Call player behviour based on the piece's color
-void getBehaviour(char color[10], struct Player *player) {
+void getBehaviour(char color[10], struct Player *player, struct Player* players[4]) {
     int consecutiveSixes = 0;
+
     if (strcmp(color, "Yellow") == 0) {
-        yellowPlayerBehaviour(player, consecutiveSixes);
+        yellowPlayerBehaviour(player, consecutiveSixes, players);
 
     } else if (strcmp(color, "Blue") == 0) {
         bluePlayerBehaviour();
@@ -283,12 +354,8 @@ void startGame(
         for(int i = 0; i<4; i++){
             if(players[i]->playOrder == currentTurn)
             {
-                getBehaviour(players[i]->color, players[i]);
+                getBehaviour(players[i]->color, players[i], players);
                 printf("\n");
-
-                // for(int j=0; j<4; j++){
-                //     getPlayerCount(players[j]);
-                // }
 
                 currentTurn = (currentTurn % 4) + 1;
                 break; 
@@ -298,7 +365,7 @@ void startGame(
 
         //Loop controller Remove this!!!!!!!!!!!
         count++;
-        if(count >40){
+        if(count >200){
                 break;
         }
     }
@@ -308,27 +375,42 @@ void playLudo() {
     srand(time(NULL)); // Seed the random number generator
     // Initialize players
     struct Player yellow = {
-        {0, 1, true, "Y1"}, {0, 1, true, "Y2"}, {0, 1, true, "Y3"}, {0, 1, true, "Y4"}, //Setting location, base, and name
-        0, "Yellow" //Setting playorder and color
+        {0, 1, 0, true, "Y1"}, 
+        {0, 1, 0, true, "Y2"}, 
+        {0, 1, 0, true, "Y3"}, 
+        {0, 1, 0, true, "Y4"}, // Setting location, direction, steps, base, and name
+        0, "Yellow" // Setting playorder and color
     };
+
     struct Player blue = {
-        {13, 1, true, "B1"}, {13, 1, true, "B2"}, {13, 1, true, "B3"}, {13, 1, true, "B4"},
+        {13, 1, 0, true, "B1"}, 
+        {13, 1, 0, true, "B2"}, 
+        {13, 1, 0, true, "B3"}, 
+        {13, 1, 0, true, "B4"},
         0, "Blue"
     };
+
     struct Player red = {
-        {26, 1, true, "R1"}, {26, 1, true, "R2"}, {26, 1, true, "R3"}, {26, 1, true, "R4"},
+        {26, 1, 0, true, "R1"}, 
+        {26, 1, 0, true, "R2"}, 
+        {26, 1, 0, true, "R3"}, 
+        {26, 1, 0, true, "R4"},
         0, "Red"
     };
+
     struct Player green = {
-        {39, 1, true, "G1"}, {39, 1, true, "G2"}, {39, 1, true, "G3"}, {39, 1, true, "G4"},
+        {0, 1, 3, false, "G1"}, //39, 1,0
+        {39, 1, 0, true, "G2"}, 
+        {39, 1, 0, true, "G3"}, 
+        {39, 1, 0, true, "G4"},
         0, "Green"
     };
 
     printIntro();
     playerOrder(&yellow, &blue, &red, &green);
     startGame(&yellow, &blue, &red, &green);
-    // drawPlayer(&yellow);
-    // movePiece(6, &yellow.piece1, yellow.color);
+    printf("Green steps: %d\n", green.piece1.steps);
+    printf("Test value is: %d\n", test);
 
     printf("\n");
 }

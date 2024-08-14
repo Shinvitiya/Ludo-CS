@@ -1,0 +1,5 @@
+TODO
+
+-Move yellow pieces based on who is closest to home
+-Check is a block is made by an opponent before moving a player
+-Modify capture piece to accomodate multiple pieces
