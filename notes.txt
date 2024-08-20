@@ -1,5 +1,15 @@
 TODO
-
--Move yellow pieces based on who is closest to home
--Check is a block is made by an opponent before moving a player
+-Check if a block is made by an opponent before moving a player
 -Modify capture piece to accomodate multiple pieces
+-Check step logic in max move, 54-52 || 54-52
+-Implement canMove() into movePiece()
+-Make room to consider 
+-Introduce or modify a function that captures a piece when the currnt player's selected piece is inout as a oarameter
+
+
+
+
+-Create a block
+-MoveBlock
+-
+-MoveorBlock function for yelloPlayerBehaviour

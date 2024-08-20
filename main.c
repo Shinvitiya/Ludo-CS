@@ -5,14 +5,23 @@
 #include <string.h>
 
 //--------Defining Structures-----------//
-int test = 0;
+
+int test = 0; //Remove this
 
 struct Piece {
     int location; //Tracks which cell the piece is curerntly on
     int direction; //Tracks is the player should move clockwise or anticlockwise
     int steps; // Keeps track of the steps the player has taken with respective to reaching the home straight---- 54 in anticlockwise direction and 52 in clockwise direction
+    int captures; 
     bool isAtBase; //Tracks if the piece is drawn or at the base. 
-    char pieceId[2];
+    bool isInBlock;
+    char pieceId[3];
+};
+
+struct Block {
+    //The maximum number of blocks a player can create is two
+    struct Piece *block1[4];
+    struct Piece *block2[4];
 };
 
 struct Player {
@@ -20,6 +29,7 @@ struct Player {
     struct Piece piece2;
     struct Piece piece3;
     struct Piece piece4;
+    struct Block blocks;
     
     int playOrder;
     char color[10];
@@ -165,6 +175,16 @@ void drawPiece(struct Player *player){
     }
 }
 
+//Checks if piece can move(Due to blocks or not sufficient blocks in home straight)
+bool canMove(){
+    return true;
+}
+
+//Checks if the opponents have created a block and whether the piece cqn move forward or not
+bool isPathBlocked(){
+    return false;
+}
+
 //Move  player piece based on the value rolled and the direction of movement
 void movePiece(int steps, struct Piece *piece, char color[10]){
     int prevLocation = piece->location;
@@ -176,7 +196,7 @@ void movePiece(int steps, struct Piece *piece, char color[10]){
 }
 
 //Checks if a block can be created
-bool canBlock(struct Player *player, int steps){
+bool canCreateBlock(struct Player *player, int steps){
     struct Piece pieces[4] = {player->piece1, player->piece2, player->piece3, player->piece4};
 
     //Loops through the pieces to check if moving the piece can create a block
@@ -191,40 +211,37 @@ bool canBlock(struct Player *player, int steps){
     }
     return false;
 }
-
-//Checks if the opponents have created a block and whether the piece cqn move forward or not
-bool isPathBlocked(){
-    return false;
-}
-
 //Creates a block
 void createBlock(int steps){
 
 }
 
-//Checks if a piece of another player can be captured
-bool canCapture(struct Player *currentPlayer, struct Player *opponent, int steps) {
+void moveBlock(){
 
-    struct Piece* currentPieces[4] = {&currentPlayer->piece1, &currentPlayer->piece2, &currentPlayer->piece3, &currentPlayer->piece4};
+    return;
+}
+
+//Checks if a piece of another player can be captured
+bool canCapture(struct Piece *currentPiece, struct Player *opponent, int steps) {
+
+    // struct Piece* currentPieces[4] = {&currentPlayer->piece1, &currentPlayer->piece2, &currentPlayer->piece3, &currentPlayer->piece4};
 
     struct Piece* opponentPieces[4] = {&opponent->piece1, &opponent->piece2, &opponent->piece3, &opponent->piece4};
 
     for(int i =0; i<4; i++){
-        for(int j=0; j <4; j++){
 
-            int newLocation = (52+ currentPieces[i]->location + (steps * currentPieces[i]->direction)) %52;
+        int newLocation = (52+ currentPiece->location + (steps * currentPiece->direction)) %52;
 
-            if((newLocation == opponentPieces[j]->location) && (opponentPieces[j]->steps > 1) ){
-                printf("can capture\n");
-                return true;
-            }
+        if((newLocation == opponentPieces[i]->location) && (opponentPieces[i]->steps > 1) ){
+            return true;
         }
     }
     return false;
 }
 
-// Function to capture opponent's pieces
+//Finds the opponent pieces that can be captured and moves a piece that can capture it
 void capturePiece(struct Player *players[4], struct Player *currentPlayer, int steps) {
+
     struct Piece* currentPlayerPieces[4] = {&currentPlayer->piece1, &currentPlayer->piece2, &currentPlayer->piece3, &currentPlayer->piece4};
 
     //Looping thorugh all the opponent players
@@ -239,19 +256,24 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
 
                 //Looping thorugh all the pieces of the opponent 
                 for(int k=0; k<4; k++){
-                    if(((newLocation == opponentPieces[k]->location) && opponentPieces[k]->steps > 1)){
+                    if(((newLocation == opponentPieces[k]->location) && !currentPlayerPieces[j]->isAtBase && opponentPieces[k]->steps > 1)){
 
-                        //Moving the current player's piece to capture the opponent's piece
+                        //Moving the current player's piece to capture the opponent's piece and increments captures by 1
                         currentPlayerPieces[j]->location = newLocation;
                         currentPlayerPieces[j]->steps += steps;
+                        currentPlayerPieces[j]->captures += 1;
+
                         printf("%s piece %s lands on square L%d, captures %s piece %s and returns it to base", currentPlayer->color, currentPlayerPieces[j]->pieceId, newLocation, players[i]->color, opponentPieces[k]->pieceId);
 
                         //Resetting the opponent's piece that was captured
                         opponentPieces[k]->isAtBase = true;
                         opponentPieces[k]->location = 0;
                         opponentPieces[k]->steps = 0;
+                        opponentPieces[k]->captures = 0;
+                        opponentPieces[k]->isInBlock = false;
+                        opponentPieces[k]->direction = 1;
 
-                        test = 1;
+                        test = 1; //Remove this
 
                         return;
                     }
@@ -261,6 +283,33 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
     }
 }
 
+//Moves piece (X) by the based on the die roll and any captures opponents piece if it is on the square X lands on 
+void moveOrCapture(int steps, struct Piece *playerPiece, char color[10], struct Player *allPlayers[4]){
+
+    movePiece(steps, playerPiece, color); //Change to normal
+    for(int i=0; i<4; i++){
+
+        if (strcmp(color, allPlayers[i]->color) != 0) {
+
+            struct Piece *opponentPieces[4] = {&allPlayers[i]->piece1, &allPlayers[i]->piece2, &allPlayers[i]->piece3, &allPlayers[i]->piece4};
+        
+            for(int j=0; j<4; j++){
+                if(playerPiece->location == opponentPieces[j]->location){
+                    opponentPieces[j]->captures = 0;
+                    opponentPieces[j]->direction = 1;
+                    opponentPieces[j]->isAtBase = true;
+                    opponentPieces[j]->isInBlock = false;
+                    opponentPieces[j]->location = 0;
+                    opponentPieces[j]->steps = 0;
+
+                    printf("%s piece %s lands on square L%d, captures %s piece %s and returns it to base",color, playerPiece->pieceId, playerPiece->location, allPlayers[i]->color, opponentPieces[j]->pieceId);
+                }
+            }
+        }        
+    }
+    return;
+}
+
 //Defining behaviour for each colored player
 
 //Yellow Player Behaviour
@@ -268,12 +317,17 @@ void yellowPlayerBehaviour(struct Player *yellow, int consecutiveSixes, struct P
     int dieValue = rollDie();
     printf("Yellow has rolled %d\n", dieValue);
 
+    struct Piece *playerPieces[4] = {&yellow->piece1, &yellow->piece2, &yellow->piece3, &yellow->piece4};
+    struct Piece *max = NULL; // Initialize to NULL
+
     bool capturePossible = false;
     for (int i = 0; i < 4; i++) {
-        if (players[i] != yellow && canCapture(yellow, players[i], dieValue) ) {
-            capturePossible = true;
-            break;
-        }
+        for(int j=0; j<4; j++){
+            if (players[i] != yellow && canCapture(playerPieces[i], players[j], dieValue) ) {
+                capturePossible = true;
+                break;
+            }
+        }     
     }
 
     if (dieValue == 6) {
@@ -291,21 +345,46 @@ void yellowPlayerBehaviour(struct Player *yellow, int consecutiveSixes, struct P
             capturePiece(players, yellow, dieValue);
 
         } else {
-            movePiece(dieValue, &yellow->piece1, yellow->color);
+
+            // Find the closest piece to home that is not at the base
+            for(int i = 0; i < 4; i++){
+                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps >  max->steps) && canMove() ){
+                    max = playerPieces[i];
+                }
+            }
+
+            // Move the piece if found
+            if(max != NULL){
+                movePiece(dieValue, max, yellow->color);
+            }else{
+                printf("No pieces can be moved\n");
+            }
         }
         yellowPlayerBehaviour(yellow, consecutiveSixes, players);
 
     } else {
-        if (!yellow->piece1.isAtBase) {
-            if (capturePossible) {
-                capturePiece(players, yellow, dieValue);
-            } else {
-                movePiece(dieValue, &yellow->piece1, yellow->color);
+
+        if (capturePossible) {
+            capturePiece(players, yellow, dieValue);
+            yellowPlayerBehaviour(yellow, consecutiveSixes, players);
+        } 
+        else {
+            // Find the closest piece to home that is not at the base
+            for(int i = 0; i < 4; i++){
+                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps > max->steps) && canMove() ){
+                    max = playerPieces[i];
+                }
+            }
+
+            // Move the piece if found
+            if(max != NULL){
+                movePiece(dieValue, max, yellow->color);
+            }else{
+                printf("No pieces can be moved\n");
             }
         }
     }
 }
-
 
 void bluePlayerBehaviour(){
     printf("This is the blue player's AI\n");
@@ -315,8 +394,74 @@ void redPlayerBehaviour(){
     printf("This is the red player's AI\n");
 }
 
-void greenPlayerBehaviour(){
-    printf("This is the green player's AI\n");
+void greenPlayerBehaviour(struct Player *green, int consecutiveSixes, struct Player* players[4]){
+
+    struct Piece *playerPieces[4] = {&green->piece1, &green->piece2, &green->piece3, &green->piece4};
+    struct Piece *max = NULL;
+
+    int dieValue = rollDie();
+
+    printf("Green has rolled %d\n", dieValue);
+
+    if(dieValue == 6){ //Logic when player rolls a six
+        consecutiveSixes++;
+
+        if (consecutiveSixes == 3) {
+            printf("Green rolled three consecutive 6s! Turn is passed to the next player.\n");
+            //Insert logic to break blocks if any
+            greenPlayerBehaviour(green, consecutiveSixes, players);
+            return;
+        }
+
+        //Moves a piece to create a block if a block can be created
+        if(canCreateBlock(green, dieValue)){
+            createBlock(dieValue);
+            greenPlayerBehaviour(green, consecutiveSixes, players);
+            return;
+        }
+
+        //Draws a piece out from the base if a block cannot be created
+        if(arePiecesAtBase(green)){
+            drawPiece(green);
+            greenPlayerBehaviour(green, consecutiveSixes, players);
+            return;
+        }
+
+        //If there is a block, move it
+        if(true){
+            moveBlock();
+            return;
+        }
+
+        //Moves the piece closest to home when a block cant be created, an existing block cant be moved and no pieces are at base
+        //Sets the peices that is drawn from base, is closest to home, can move and is not in a block to max
+        for(int i = 0; i < 4; i++){
+            if((max == NULL || playerPieces[i]->steps > max->steps) && (playerPieces[i]->isAtBase) && canMove()){
+                max = playerPieces[i];
+            }
+        }
+
+        if(max != NULL){
+            // Move the max piece if found
+            moveOrCapture(dieValue, max, green->color, players);
+            
+        }else{
+            //breaks a block as no other piece can be moved 
+            if(max != NULL){ 
+                max->isInBlock = false; //Breaks max piece from the block
+                moveOrCapture(dieValue, max, green->color, players);
+
+            }else{
+                printf("No pieces can be moved\n");
+            } 
+        }
+        greenPlayerBehaviour(green, consecutiveSixes, players);
+
+    }else{ //Logic when player rolls a valie that isn't a six
+        printf("This logic isnt set yet\n");
+    }
+
+
 }
 
 //Call player behviour based on the piece's color
@@ -333,7 +478,7 @@ void getBehaviour(char color[10], struct Player *player, struct Player* players[
         redPlayerBehaviour();
 
     } else {
-        greenPlayerBehaviour();
+        greenPlayerBehaviour(player, consecutiveSixes, players);
     }
 }
  
@@ -365,7 +510,7 @@ void startGame(
 
         //Loop controller Remove this!!!!!!!!!!!
         count++;
-        if(count >200){
+        if(count >100){
                 break;
         }
     }
@@ -375,34 +520,38 @@ void playLudo() {
     srand(time(NULL)); // Seed the random number generator
     // Initialize players
     struct Player yellow = {
-        {0, 1, 0, true, "Y1"}, 
-        {0, 1, 0, true, "Y2"}, 
-        {0, 1, 0, true, "Y3"}, 
-        {0, 1, 0, true, "Y4"}, // Setting location, direction, steps, base, and name
-        0, "Yellow" // Setting playorder and color
+        {0, 1, 0, 0, true, false, "Y1"}, //location,direction,steps,captures,isAtBase,isInBlock,pieceID
+        {0, 1, 0, 0, true, false, "Y2"}, 
+        {0, 1, 0, 0, true, false, "Y3"}, 
+        {0, 1, 0, 0, true, false, "Y4"},
+        {}, //Blocks
+        0, "Yellow" //Playorder, Player Color
     };
 
     struct Player blue = {
-        {13, 1, 0, true, "B1"}, 
-        {13, 1, 0, true, "B2"}, 
-        {13, 1, 0, true, "B3"}, 
-        {13, 1, 0, true, "B4"},
+        {13, 1, 0, 0, true, false, "B1"}, 
+        {13, 1, 0, 0, true, false, "B2"}, 
+        {13, 1, 0, 0, true, false, "B3"}, 
+        {13, 1, 0, 0, true, false, "B4"},
+        {},
         0, "Blue"
     };
 
     struct Player red = {
-        {26, 1, 0, true, "R1"}, 
-        {26, 1, 0, true, "R2"}, 
-        {26, 1, 0, true, "R3"}, 
-        {26, 1, 0, true, "R4"},
+        {26, 1, 0, 0, true, false, "R1"}, 
+        {26, 1, 0, 0, true, false, "R2"}, 
+        {26, 1, 0, 0, true, false, "R3"}, 
+        {26, 1, 0, 0, true, false, "R4"},
+        {},
         0, "Red"
     };
 
     struct Player green = {
-        {0, 1, 3, false, "G1"}, //39, 1,0
-        {39, 1, 0, true, "G2"}, 
-        {39, 1, 0, true, "G3"}, 
-        {39, 1, 0, true, "G4"},
+        {39, 1, 0, 0, true, false, "G1"},
+        {39, 1, 0, 0, true, false, "G2"}, 
+        {39, 1, 0, 0, true, false, "G3"}, 
+        {39, 1, 0, 0, true, false, "G4"},
+        {},
         0, "Green"
     };
 
@@ -410,6 +559,7 @@ void playLudo() {
     playerOrder(&yellow, &blue, &red, &green);
     startGame(&yellow, &blue, &red, &green);
     printf("Green steps: %d\n", green.piece1.steps);
+
     printf("Test value is: %d\n", test);
 
     printf("\n");
