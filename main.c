@@ -24,6 +24,7 @@ struct Block {
     int direction;
     int location;
     int dieValueDivider;
+    int steps;
     bool isNull; 
 };
 
@@ -201,12 +202,20 @@ void movePiece(int steps, struct Piece *piece, char color[10]){
     piece->direction == 1? printf("Clockwise Direction\n\n"):printf("AntiClockwise Direction \n\n");
 }
 
-//Checks if the player already has blocks
-bool hasBlocks(struct Block *block1, struct Block *block2){
-    if(!block1->isNull || !block2->isNull){
-        return true;
-    }
-    return false;
+int getBlockDirection(struct Block *block){
+
+    // for{int i=0; i<4; i++}{
+    //     block.
+    // }
+    return;
+}
+
+int getBlockStepDividers(struct Block *block){
+    return;
+}
+
+int getBlockSteps(struct Block *block){
+    return;
 }
 
 bool canCreateBlock(struct Player *player, int steps){
@@ -265,60 +274,119 @@ bool canCreateBlock(struct Player *player, int steps){
 
 //Creates a block
 void createBlock(struct Player *player, int steps){
-    return;
+
+    struct Piece* pieces[4] = {&player->piece1, &player->piece2, &player->piece3, &player->piece4};
+    struct Block* blocks[4] = {&player->block1, &player->block2};
+
+
+    //Moves a piece that isnt in a block, to create a block.
+    for(int i=0; i<3; i++){
+
+        //If the piece is already in a block, moves the loop to the next piece   
+        if(pieces[i]->isInBlock){
+            continue;
+        }
+        int newLocation = (52 + pieces[i]->location + pieces[i]->direction * steps) % 52;
+
+        for(int j=0; j<4; j++){
+            //Moves to the next piece if the two pieces are the same
+            if( pieces[i] == pieces[j]){
+                continue;
+            }    
+
+            if(newLocation == pieces[j]->location){
+                pieces[i]->isInBlock = true;
+                pieces[i]->location = newLocation;
+                pieces[i]->steps += steps;
+
+                //If both blocks of the player are empty, add the values to block1
+                if(player->block1.isNull && player->block2.isNull){
+
+                    player->block1.pieces[0] = pieces[i];
+                    player->block1.pieces[1] = pieces[j];
+                    player->block1.isNull = false;
+                    //Set block Direction, location and steps, step divider
+                    return;
+                }
+
+                //If the first block is occpied and the new location doesnt match the location of the first block
+                if(player->block2.isNull && !player->block1.isNull && player->block1.location == !newLocation){
+                    player->block2.pieces[0] = pieces[i];
+                    player->block2.pieces[1] = pieces[j];
+                    player->block2.isNull = false;
+                    //Set block Direction, location and steps, step divider
+                    return;
+                }
+
+                //If both blocks are not empty, adds the values to the relevant block
+                for(int k=0; k<2; k++){
+                    if(!blocks[k]->isNull && blocks[k]->location == newLocation){  //Check login Here
+
+                        for (int l = 0; l < 4; l++) {
+                            if (blocks[k]->pieces[l] == NULL) {
+                                blocks[k]->pieces[l] = pieces[i];
+                                break;
+                            }
+                        }
+
+                        //Set block Direction, location and steps, step divider
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    //If there exists no piece that isnt in a block, then all pieces are in a block
+    //Since createBlock() is only implemented when canCreateBlock() returns, it means, the players have two blocks each with two pieces
+    int block1NewLocation = (52 + player->block1.location + player->block1.direction * steps /player->block1.dieValueDivider) % 52;
+    int block2NewLocation = (52 + player->block2.location + player->block2.direction * steps /player->block2.dieValueDivider) % 52;
+
+    if(block1NewLocation == player->block2.location){
+        for(int i=0; i < 4; i++){
+            for(int j=0; j<4; j++){
+                if(player->block2.pieces[j] == NULL && player->block1.pieces[i] != NULL){
+                    
+                    player->block2.pieces[j] = player->block1.pieces[i];
+                    player->block1.pieces[i] = NULL;
+
+                    player->block1.dieValueDivider = 1;
+                    player->block1.direction = 1;
+                    player->block1.isNull = true;
+                    player->block1.location = 0;
+                    player->block1.steps = 0;
+                }
+            }
+        }
+
+        //Code to calculate block direction, steps step divider etc
+        return;
+    }
+    if(block2NewLocation == player->block1.location){
+        for(int i=0; i < 4; i++){
+            for(int j=0; j<4; j++){
+                if(player->block1.pieces[j] == NULL && player->block2.pieces[i] != NULL){
+                    
+                    player->block1.pieces[j] = player->block2.pieces[i];
+                    player->block2.pieces[i] = NULL;
+                    player->block2.dieValueDivider = 1;
+                    player->block2.direction = 1;
+                    player->block2.isNull = true;
+                    player->block2.location = 0;
+                    player->block2.steps = 0;
+                }
+            }
+        }
+
+        //Sets new direction, steps etc of block, step divider
+        return;
+    }
 }
 
-// //Creates a block
-// void createBlock(struct Player *player, int steps){
-//     struct Piece pieces[4] = {player->piece1, player->piece2, player->piece3, player->piece4};
+void moveBlock(){
 
-//     //If there are two blocks
-//     if(hasBlock1() && hasBlock2()){
-//         return;
-//     }
-
-//     if(hasBlock1()){
-//         int moveSteps = steps/ player->blocks.block1PieceCount;
-//         for(int i=0; i<4; i++){
-//             int newBlockLocation = (52 + player->blocks.block1[0]->location + player->blocks.block1Direction * moveSteps ) %52;
-//             //Change steps divider value here
-            
-//             //Creates a larger block by moving the block to a piece that is not in a block
-//             if(!pieces[i].isInBlock && pieces[i].location == newBlockLocation){
-
-//                 pieces[i].isInBlock = true;
-//                 player->blocks.block1PieceCount ++;
-
-
-                
-//                 for(int j=0; j<4; j++){
-//                     if(!player->blocks.block1[j] == NULL){
-//                         //Updating the location of each player in the block
-//                         player->blocks.block1[j]->location = newBlockLocation;
-
-//                         //Updating the
-//                         if(player->blocks.block1[j]->direction == player->blocks.block1Direction){
-//                             player->blocks.block1[j]->steps += moveSteps;
-//                         }else{
-//                             player->blocks.block1[j]->steps -= moveSteps;
-//                         }
-//                     }
-//                 }
-
-//                 return;
-//             }
-//         }   
-//     }
-
-//     if(hasBlock2){
-//         return;
-//     }
-// }
-
-// void moveBlock(){
-
-//     return;
-// }
+    return;
+}
 
 //Checks if a piece of another player can be captured
 bool canCapture(struct Piece *currentPiece, struct Player *opponent, int steps) {
@@ -625,8 +693,8 @@ void playLudo() {
         {0, 1, 0, 0, true, false, "Y3"}, 
         {0, 1, 0, 0, true, false, "Y4"},
 
-        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},  //Block - pieces, direction, location, isNUll
-        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},  //Block - pieces, direction, location, isNUll
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
         0, "Yellow" //Playorder, Player Color
     };
 
@@ -636,8 +704,8 @@ void playLudo() {
         {13, 1, 0, 0, true, false, "B3"}, 
         {13, 1, 0, 0, true, false, "B4"},
 
-        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
-        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
 
         0, "Blue"
     };
@@ -648,8 +716,8 @@ void playLudo() {
         {26, 1, 0, 0, true, false, "R3"}, 
         {26, 1, 0, 0, true, false, "R4"},
         
-        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
-        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
 
         0, "Red"
     };
@@ -660,8 +728,8 @@ void playLudo() {
         {39, 1, 0, 0, true, false, "G3"}, 
         {39, 1, 0, 0, true, false, "G4"},
         
-        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
-        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
 
         0, "Green"
     };
