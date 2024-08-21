@@ -6,7 +6,8 @@
 
 //--------Defining Structures-----------//
 
-int test = 0; //Remove this
+int testCaptures = 0; //Remove this
+int testBlocks = 0;
 
 struct Piece {
     int location; //Tracks which cell the piece is curerntly on
@@ -19,9 +20,11 @@ struct Piece {
 };
 
 struct Block {
-    //The maximum number of blocks a player can create is two
-    struct Piece *block1[4];
-    struct Piece *block2[4];
+    struct Piece *pieces[4];
+    int direction;
+    int location;
+    int dieValueDivider;
+    bool isNull; 
 };
 
 struct Player {
@@ -29,7 +32,10 @@ struct Player {
     struct Piece piece2;
     struct Piece piece3;
     struct Piece piece4;
-    struct Block blocks;
+
+    //Two Blocks are called since the maximum number if blocks a player can create is 2
+    struct Block block1; 
+    struct Block block2;
     
     int playOrder;
     char color[10];
@@ -195,31 +201,124 @@ void movePiece(int steps, struct Piece *piece, char color[10]){
     piece->direction == 1? printf("Clockwise Direction\n\n"):printf("AntiClockwise Direction \n\n");
 }
 
-//Checks if a block can be created
-bool canCreateBlock(struct Player *player, int steps){
-    struct Piece pieces[4] = {player->piece1, player->piece2, player->piece3, player->piece4};
+//Checks if the player already has blocks
+bool hasBlocks(struct Block *block1, struct Block *block2){
+    if(!block1->isNull || !block2->isNull){
+        return true;
+    }
+    return false;
+}
 
-    //Loops through the pieces to check if moving the piece can create a block
-    for(int i = 0; i<3; i++){ 
-        for(int j=i+1; j<4; j++){
-            int newLocation = (52 + pieces[i].location + pieces[i].direction * steps) % 52;
-            if( newLocation == pieces[j].location){
-                printf("A block can be been created");
-                return true;
+bool canCreateBlock(struct Player *player, int steps){
+
+    struct Piece pieces[4] = {player->piece1, player->piece2, player->piece3, player->piece4};
+    struct Block blocks[2] = {player->block1, player->block2};
+
+    //When the player has no blocks, checks if a block can be made by moving a piece;
+    if(player->block1.isNull && player->block2.isNull){
+
+        for(int i = 0; i<3; i++){ 
+            for(int j=i+1; j<4; j++){
+                int newLocation = (52 + pieces[i].location + pieces[i].direction * steps) % 52;
+                if( newLocation == pieces[j].location){
+                    printf("A block can be been created");
+                    return true;
+                }
+            }
+        }
+    }
+
+    //When a player has two blocks checks if moving one block can create a larger block with the other
+    if(!player->block1.isNull && !player->block2.isNull){
+
+        int newBlock1Location = (52 + player->block1.location + player->block1.direction * (steps / player->block1.dieValueDivider));
+        int newBlock2Location = (52 + player->block2.location + player->block2.direction * (steps / player->block2.dieValueDivider));
+
+        if( newBlock1Location == player->block2.location || newBlock2Location == player->block2.location){
+            return true;
+        }
+    }
+
+    //When one block exists, checks if moving a piece or block can create a larger block
+    for(int i=0; i<2; i++){
+
+        //Checks if the block exists
+        if(!blocks[i].isNull){
+
+            for(int j=0; j<4; j++){
+                //Checks for pieces that are not in a block
+                if(!pieces[j].isInBlock){
+
+                    int newBlockLocation = (52 + blocks[i].location + blocks->direction * (steps / blocks[i].dieValueDivider)) %52; //New location of the block if you decide to move it
+                    int newPieceLocation = (52 + pieces[j]. location + pieces[j].direction * steps) %52; //New location of the piece if you decide you move it
+
+                    //Checks if moving the block to a new location or moving a piece to a new location can create a (larger) block
+                    if(newBlockLocation == pieces[j].location || newPieceLocation == blocks[i].location){
+                        return true;
+                    }
+                }
             }
         }
     }
     return false;
 }
+
 //Creates a block
-void createBlock(int steps){
-
-}
-
-void moveBlock(){
-
+void createBlock(struct Player *player, int steps){
     return;
 }
+
+// //Creates a block
+// void createBlock(struct Player *player, int steps){
+//     struct Piece pieces[4] = {player->piece1, player->piece2, player->piece3, player->piece4};
+
+//     //If there are two blocks
+//     if(hasBlock1() && hasBlock2()){
+//         return;
+//     }
+
+//     if(hasBlock1()){
+//         int moveSteps = steps/ player->blocks.block1PieceCount;
+//         for(int i=0; i<4; i++){
+//             int newBlockLocation = (52 + player->blocks.block1[0]->location + player->blocks.block1Direction * moveSteps ) %52;
+//             //Change steps divider value here
+            
+//             //Creates a larger block by moving the block to a piece that is not in a block
+//             if(!pieces[i].isInBlock && pieces[i].location == newBlockLocation){
+
+//                 pieces[i].isInBlock = true;
+//                 player->blocks.block1PieceCount ++;
+
+
+                
+//                 for(int j=0; j<4; j++){
+//                     if(!player->blocks.block1[j] == NULL){
+//                         //Updating the location of each player in the block
+//                         player->blocks.block1[j]->location = newBlockLocation;
+
+//                         //Updating the
+//                         if(player->blocks.block1[j]->direction == player->blocks.block1Direction){
+//                             player->blocks.block1[j]->steps += moveSteps;
+//                         }else{
+//                             player->blocks.block1[j]->steps -= moveSteps;
+//                         }
+//                     }
+//                 }
+
+//                 return;
+//             }
+//         }   
+//     }
+
+//     if(hasBlock2){
+//         return;
+//     }
+// }
+
+// void moveBlock(){
+
+//     return;
+// }
 
 //Checks if a piece of another player can be captured
 bool canCapture(struct Piece *currentPiece, struct Player *opponent, int steps) {
@@ -273,7 +372,7 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
                         opponentPieces[k]->isInBlock = false;
                         opponentPieces[k]->direction = 1;
 
-                        test = 1; //Remove this
+                        testCaptures = 1; //Remove this
 
                         return;
                     }
@@ -415,7 +514,7 @@ void greenPlayerBehaviour(struct Player *green, int consecutiveSixes, struct Pla
 
         //Moves a piece to create a block if a block can be created
         if(canCreateBlock(green, dieValue)){
-            createBlock(dieValue);
+            createBlock(green, dieValue); 
             greenPlayerBehaviour(green, consecutiveSixes, players);
             return;
         }
@@ -429,11 +528,12 @@ void greenPlayerBehaviour(struct Player *green, int consecutiveSixes, struct Pla
 
         //If there is a block, move it
         if(true){
-            moveBlock();
+            // moveBlock();
             return;
         }
 
         //Moves the piece closest to home when a block cant be created, an existing block cant be moved and no pieces are at base
+
         //Sets the peices that is drawn from base, is closest to home, can move and is not in a block to max
         for(int i = 0; i < 4; i++){
             if((max == NULL || playerPieces[i]->steps > max->steps) && (playerPieces[i]->isAtBase) && canMove()){
@@ -520,11 +620,13 @@ void playLudo() {
     srand(time(NULL)); // Seed the random number generator
     // Initialize players
     struct Player yellow = {
-        {0, 1, 0, 0, true, false, "Y1"}, //location,direction,steps,captures,isAtBase,isInBlock,pieceID
+        {0, 1, 0, 0, true, false, "Y1"}, //Piece - location,direction,steps,captures,isAtBase,isInBlock,pieceID
         {0, 1, 0, 0, true, false, "Y2"}, 
         {0, 1, 0, 0, true, false, "Y3"}, 
         {0, 1, 0, 0, true, false, "Y4"},
-        {}, //Blocks
+
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},  //Block - pieces, direction, location, isNUll
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
         0, "Yellow" //Playorder, Player Color
     };
 
@@ -533,7 +635,10 @@ void playLudo() {
         {13, 1, 0, 0, true, false, "B2"}, 
         {13, 1, 0, 0, true, false, "B3"}, 
         {13, 1, 0, 0, true, false, "B4"},
-        {},
+
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+
         0, "Blue"
     };
 
@@ -542,7 +647,10 @@ void playLudo() {
         {26, 1, 0, 0, true, false, "R2"}, 
         {26, 1, 0, 0, true, false, "R3"}, 
         {26, 1, 0, 0, true, false, "R4"},
-        {},
+        
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+
         0, "Red"
     };
 
@@ -551,7 +659,10 @@ void playLudo() {
         {39, 1, 0, 0, true, false, "G2"}, 
         {39, 1, 0, 0, true, false, "G3"}, 
         {39, 1, 0, 0, true, false, "G4"},
-        {},
+        
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+        { {NULL, NULL, NULL, NULL}, 1, 0, 1, true},
+
         0, "Green"
     };
 
@@ -560,7 +671,8 @@ void playLudo() {
     startGame(&yellow, &blue, &red, &green);
     printf("Green steps: %d\n", green.piece1.steps);
 
-    printf("Test value is: %d\n", test);
+    printf("Test value is: %d\n", testCaptures);
+    printf("Test value is: %d\n", testBlocks);
 
     printf("\n");
 }
