@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 
+#define TOTAL_STEPS 52
 //--------Defining Structures-----------//
 
 int testCaptures = 0; //Remove this
@@ -12,10 +13,11 @@ int testBlocks = 0;
 struct Piece {
     int location; //Tracks which cell the piece is curerntly on
     int direction; //Tracks is the player should move clockwise or anticlockwise
-    int steps; // Keeps track of the steps the player has taken with respective to reaching the home straight---- 54 in anticlockwise direction and 52 in clockwise direction
-    int captures; 
+    int steps; // Keeps track of the steps the piece has taken with respective to reaching the home straight
+    int captures; //Keeps track if the piece has captured a piece
     bool isAtBase; //Tracks if the piece is drawn or at the base. 
-    bool isInBlock;
+    bool isAtHome; //Tracks if teh piece has reached home false,
+    bool isInBlock; //Tracks if the piece is in a block.
     char pieceId[3];
 };
 
@@ -183,8 +185,18 @@ void drawPiece(struct Player *player){
 }
 
 //Checks if piece can move(Due to blocks or not sufficient blocks in home straight)
-bool canMove(){
-    return true;
+bool canMove(struct Piece *piece, int steps){
+
+    //Checks if a piece with clockwise movement can many move forward in the home straight
+    if(piece->direction > 0 && (piece->steps + steps) <= 59 && !piece->isAtHome){
+        return true;
+    }
+
+    //Checks if a piece with anti-clockwise movement can many move forward in the home straight
+    if(piece->direction < 0 && (piece->steps + steps) <= 61 && !piece->isAtHome){
+        return true;
+    }
+    return false;
 }
 
 //Checks if the opponents have created a block and whether the piece cqn move forward or not
@@ -198,23 +210,49 @@ void movePiece(int steps, struct Piece *piece, char color[10]){
     piece->location = (52 + piece->location + piece->direction * steps) % 52;
     piece->steps = piece->steps + steps;
 
+    if((piece->direction < 0 && piece->steps >55) || (piece->direction > 0 && piece->steps >53)){
+        piece->steps+= steps;
+        printf("%s has moved by %d\n", piece->pieceId, piece->steps);
+
+        if((piece->direction < 0 && piece->steps == 61) || (piece->direction > 0 && piece->steps == 59)){
+
+            piece->isAtHome = true;
+            printf("Piece %s of %s player has reached home\n\n",piece->pieceId, color);
+
+        }else{
+
+            printf("Piece %s of %s player has moved %d squares up the home straight", piece->pieceId, color, steps);
+        }
+
+        return;
+    }
+
     printf("%s moves piece %s from location L%d to L%d by %d units in ", color,piece->pieceId, prevLocation, piece->location, steps);
     piece->direction == 1? printf("Clockwise Direction\n\n"):printf("AntiClockwise Direction \n\n");
 }
 
-int getBlockDirection(struct Block *block){
+//Updates the direction, steps, and stepDivider of the block after a new piece is added to the block
+void updateBlockData(struct Block *block){
+    struct Piece* pieces[4] = {block->pieces[0], block->pieces[1], block->pieces[2], block->pieces[3]};
 
-    // for{int i=0; i<4; i++}{
-    //     block.
-    // }
-    return;
-}
+    int newSteps;
+    int newDirection;
+    int newDieValueDivider = 4;
 
-int getBlockStepDividers(struct Block *block){
-    return;
-}
+    for(int i=0; i<4; i++){
+        if(pieces[i] == NULL){
+            newDieValueDivider--; 
+            continue;
+        }
 
-int getBlockSteps(struct Block *block){
+        if(pieces[i]->steps < block->steps){
+            newSteps = pieces[i]->steps;
+            newDirection = pieces[i]->direction;
+        }
+    }
+    block->direction = newDirection;
+    block->steps = newSteps;
+    block->dieValueDivider = newDieValueDivider;
     return;
 }
 
@@ -228,7 +266,7 @@ bool canCreateBlock(struct Player *player, int steps){
 
         for(int i = 0; i<3; i++){ 
             for(int j=i+1; j<4; j++){
-                int newLocation = (52 + pieces[i].location + pieces[i].direction * steps) % 52;
+                int newLocation = (TOTAL_STEPS + pieces[i].location + pieces[i].direction * steps) % TOTAL_STEPS;
                 if( newLocation == pieces[j].location){
                     printf("A block can be been created");
                     return true;
@@ -240,8 +278,8 @@ bool canCreateBlock(struct Player *player, int steps){
     //When a player has two blocks checks if moving one block can create a larger block with the other
     if(!player->block1.isNull && !player->block2.isNull){
 
-        int newBlock1Location = (52 + player->block1.location + player->block1.direction * (steps / player->block1.dieValueDivider));
-        int newBlock2Location = (52 + player->block2.location + player->block2.direction * (steps / player->block2.dieValueDivider));
+        int newBlock1Location = (TOTAL_STEPS + player->block1.location + player->block1.direction * (steps / player->block1.dieValueDivider));
+        int newBlock2Location = (TOTAL_STEPS + player->block2.location + player->block2.direction * (steps / player->block2.dieValueDivider));
 
         if( newBlock1Location == player->block2.location || newBlock2Location == player->block2.location){
             return true;
@@ -258,8 +296,8 @@ bool canCreateBlock(struct Player *player, int steps){
                 //Checks for pieces that are not in a block
                 if(!pieces[j].isInBlock){
 
-                    int newBlockLocation = (52 + blocks[i].location + blocks->direction * (steps / blocks[i].dieValueDivider)) %52; //New location of the block if you decide to move it
-                    int newPieceLocation = (52 + pieces[j]. location + pieces[j].direction * steps) %52; //New location of the piece if you decide you move it
+                    int newBlockLocation = (TOTAL_STEPS + blocks[i].location + blocks->direction * (steps / blocks[i].dieValueDivider)) %TOTAL_STEPS; //New location of the block if you decide to move it
+                    int newPieceLocation = (TOTAL_STEPS + pieces[j]. location + pieces[j].direction * steps) %TOTAL_STEPS; //New location of the piece if you decide you move it
 
                     //Checks if moving the block to a new location or moving a piece to a new location can create a (larger) block
                     if(newBlockLocation == pieces[j].location || newPieceLocation == blocks[i].location){
@@ -286,9 +324,9 @@ void createBlock(struct Player *player, int steps){
         if(pieces[i]->isInBlock){
             continue;
         }
-        int newLocation = (52 + pieces[i]->location + pieces[i]->direction * steps) % 52;
+        int newLocation = (TOTAL_STEPS + pieces[i]->location + pieces[i]->direction * steps) % TOTAL_STEPS;
 
-        for(int j=0; j<4; j++){
+        for(int j=i+1; j<4; j++){
             //Moves to the next piece if the two pieces are the same
             if( pieces[i] == pieces[j]){
                 continue;
@@ -305,22 +343,30 @@ void createBlock(struct Player *player, int steps){
                     player->block1.pieces[0] = pieces[i];
                     player->block1.pieces[1] = pieces[j];
                     player->block1.isNull = false;
-                    //Set block Direction, location and steps, step divider
+                    player->block1.location = pieces[i]->location;
+                    updateBlockData(&player->block1);
+
+                    printf("%s Player has created a block at L%d with pieces %s and %s\n", player->color, player->block1.location, pieces[i]->pieceId, pieces[j]->pieceId);
                     return;
                 }
 
-                //If the first block is occpied and the new location doesnt match the location of the first block
+                //If the first block is occupied and the new location doesnt match the location of the first block
                 if(player->block2.isNull && !player->block1.isNull && player->block1.location == !newLocation){
                     player->block2.pieces[0] = pieces[i];
                     player->block2.pieces[1] = pieces[j];
                     player->block2.isNull = false;
-                    //Set block Direction, location and steps, step divider
+                    player->block2.location = pieces[i]->location;
+
+                    updateBlockData(&player->block2);
+                    printf("%s Player has created a block at L%d with pieces %s and %s\n", player->color, player->block2.location, pieces[i]->pieceId, pieces[j]->pieceId);
+
                     return;
+
                 }
 
-                //If both blocks are not empty, adds the values to the relevant block
+                //When there is only one block with two pieces and a more pieces joins that block
                 for(int k=0; k<2; k++){
-                    if(!blocks[k]->isNull && blocks[k]->location == newLocation){  //Check login Here
+                    if(!blocks[k]->isNull && blocks[k]->location == newLocation){
 
                         for (int l = 0; l < 4; l++) {
                             if (blocks[k]->pieces[l] == NULL) {
@@ -329,7 +375,8 @@ void createBlock(struct Player *player, int steps){
                             }
                         }
 
-                        //Set block Direction, location and steps, step divider
+                        updateBlockData(blocks[k]);
+                        //Add Print statement here
                         return;
                     }
                 }
@@ -339,9 +386,10 @@ void createBlock(struct Player *player, int steps){
 
     //If there exists no piece that isnt in a block, then all pieces are in a block
     //Since createBlock() is only implemented when canCreateBlock() returns, it means, the players have two blocks each with two pieces
-    int block1NewLocation = (52 + player->block1.location + player->block1.direction * steps /player->block1.dieValueDivider) % 52;
-    int block2NewLocation = (52 + player->block2.location + player->block2.direction * steps /player->block2.dieValueDivider) % 52;
+    int block1NewLocation = (TOTAL_STEPS + player->block1.location + player->block1.direction * steps /player->block1.dieValueDivider) % TOTAL_STEPS;
+    int block2NewLocation = (TOTAL_STEPS + player->block2.location + player->block2.direction * steps /player->block2.dieValueDivider) % TOTAL_STEPS;
 
+    //When block1 moves to block2 and creates a new block
     if(block1NewLocation == player->block2.location){
         for(int i=0; i < 4; i++){
             for(int j=0; j<4; j++){
@@ -350,18 +398,24 @@ void createBlock(struct Player *player, int steps){
                     player->block2.pieces[j] = player->block1.pieces[i];
                     player->block1.pieces[i] = NULL;
 
-                    player->block1.dieValueDivider = 1;
-                    player->block1.direction = 1;
-                    player->block1.isNull = true;
-                    player->block1.location = 0;
-                    player->block1.steps = 0;
                 }
             }
         }
+        //Resetting block1
+        player->block1.dieValueDivider = 1;
+        player->block1.direction = 1;
+        player->block1.isNull = true;
+        player->block1.location = 0;
+        player->block1.steps = 0;
 
-        //Code to calculate block direction, steps step divider etc
+        //Updating block2
+        updateBlockData(&player->block2);
+
+        printf("%s Player has created a block at L%d with pieces %s, %s, %s and %s.\n", player->color, player->block2.location, player->block2.pieces[0]->pieceId, player->block2.pieces[1]->pieceId, player->block2.pieces[2]->pieceId, player->block2.pieces[3]->pieceId);
+
         return;
     }
+    //When block2 moves to block1 and creates a new block
     if(block2NewLocation == player->block1.location){
         for(int i=0; i < 4; i++){
             for(int j=0; j<4; j++){
@@ -369,21 +423,63 @@ void createBlock(struct Player *player, int steps){
                     
                     player->block1.pieces[j] = player->block2.pieces[i];
                     player->block2.pieces[i] = NULL;
-                    player->block2.dieValueDivider = 1;
-                    player->block2.direction = 1;
-                    player->block2.isNull = true;
-                    player->block2.location = 0;
-                    player->block2.steps = 0;
                 }
             }
         }
 
-        //Sets new direction, steps etc of block, step divider
+        //Resetting block 2;
+        player->block2.dieValueDivider = 1;
+        player->block2.direction = 1;
+        player->block2.isNull = true;
+        player->block2.location = 0;
+        player->block2.steps = 0;
+
+        //Updating1
+        updateBlockData(&player->block1);
+
+        printf("%s Player has created a block at L%d with pieces %s, %s, %s and %s.\n", player->color, player->block1.location, player->block1.pieces[0]->pieceId, player->block1.pieces[1]->pieceId, player->block1.pieces[2]->pieceId, player->block1.pieces[3]->pieceId);
         return;
     }
 }
 
-void moveBlock(){
+void moveBlock(struct Block *block1, struct Block *block2, int steps){
+
+    int block1NewLocation = (TOTAL_STEPS + block1->location + block1->direction * (steps / block1->dieValueDivider)) % TOTAL_STEPS;
+    int block2NewLocation = (TOTAL_STEPS + block2->location + block2->direction * (steps / block2->dieValueDivider)) % TOTAL_STEPS;
+
+    //If two blocks exists, moving the block closest to home
+    if(!block1->isNull && !block2->isNull){
+        if(block1->steps > block2->steps){
+
+            //If can capture, block, else:--------------------------------
+            block1->location = block1NewLocation;
+            block1->steps += steps/block1->dieValueDivider;
+        }else{
+
+            //If can capture, block, else:--------------------------------
+            block2->location = block2NewLocation;
+            block2->steps += steps/block1->dieValueDivider;
+        }
+        return;
+    }
+
+    //If only block1 exists
+    if(!block1->isNull && block2->isNull){
+
+        //If can capture, block, else:--------------------------------
+        block1->location = block1NewLocation;
+        block1->steps += steps/block1->dieValueDivider;
+        return;
+    }
+
+    //If only block2 exists
+    if(!block2->isNull && block1->isNull){
+
+        //If can capture, block, else:--------------------------------
+        block2->location = block2NewLocation;
+        block2->steps += steps/block2->dieValueDivider;
+        return;
+    }
 
     return;
 }
@@ -391,15 +487,14 @@ void moveBlock(){
 //Checks if a piece of another player can be captured
 bool canCapture(struct Piece *currentPiece, struct Player *opponent, int steps) {
 
-    // struct Piece* currentPieces[4] = {&currentPlayer->piece1, &currentPlayer->piece2, &currentPlayer->piece3, &currentPlayer->piece4};
-
     struct Piece* opponentPieces[4] = {&opponent->piece1, &opponent->piece2, &opponent->piece3, &opponent->piece4};
 
     for(int i =0; i<4; i++){
 
-        int newLocation = (52+ currentPiece->location + (steps * currentPiece->direction)) %52;
+        int newLocation = (TOTAL_STEPS+ currentPiece->location + (steps * currentPiece->direction)) %TOTAL_STEPS;
+        int playerSteps = currentPiece->direction > 0? 53 : 55;
 
-        if((newLocation == opponentPieces[i]->location) && (opponentPieces[i]->steps > 1) ){
+        if((newLocation == opponentPieces[i]->location) && (opponentPieces[i]->steps > 1) && !((currentPiece->steps + steps > playerSteps) && (currentPiece->captures > 0 ))){
             return true;
         }
     }
@@ -419,18 +514,19 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
             //Looping through the all the pieces of the current Player
             for(int j=0; j<4; j++){
                 int prevLocation = currentPlayerPieces[j]->location;
-                int newLocation =  (52 + currentPlayerPieces[j]->location + (steps * currentPlayerPieces[j]->direction)) % 52;
+                int newLocation =  (TOTAL_STEPS + currentPlayerPieces[j]->location + (steps * currentPlayerPieces[j]->direction)) % TOTAL_STEPS;
+                int playerSteps = currentPlayerPieces[j]->direction > 0? 53 : 55;
 
                 //Looping thorugh all the pieces of the opponent 
                 for(int k=0; k<4; k++){
-                    if(((newLocation == opponentPieces[k]->location) && !currentPlayerPieces[j]->isAtBase && opponentPieces[k]->steps > 1)){
+                    if((newLocation == opponentPieces[k]->location) && (!currentPlayerPieces[j]->isAtBase) && (opponentPieces[k]->steps > 1) && !((currentPlayerPieces[j]->steps + steps > playerSteps) && (currentPlayerPieces[j]->captures > 0))){
 
                         //Moving the current player's piece to capture the opponent's piece and increments captures by 1
                         currentPlayerPieces[j]->location = newLocation;
                         currentPlayerPieces[j]->steps += steps;
                         currentPlayerPieces[j]->captures += 1;
 
-                        printf("%s piece %s lands on square L%d, captures %s piece %s and returns it to base", currentPlayer->color, currentPlayerPieces[j]->pieceId, newLocation, players[i]->color, opponentPieces[k]->pieceId);
+                        printf("%s piece %s lands on square L%d, captures %s piece %s and returns it to base.\n", currentPlayer->color, currentPlayerPieces[j]->pieceId, newLocation, players[i]->color, opponentPieces[k]->pieceId);
 
                         //Resetting the opponent's piece that was captured
                         opponentPieces[k]->isAtBase = true;
@@ -440,7 +536,7 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
                         opponentPieces[k]->isInBlock = false;
                         opponentPieces[k]->direction = 1;
 
-                        testCaptures = 1; //Remove this
+                        testCaptures +=1; //Remove this
 
                         return;
                     }
@@ -459,9 +555,12 @@ void moveOrCapture(int steps, struct Piece *playerPiece, char color[10], struct 
         if (strcmp(color, allPlayers[i]->color) != 0) {
 
             struct Piece *opponentPieces[4] = {&allPlayers[i]->piece1, &allPlayers[i]->piece2, &allPlayers[i]->piece3, &allPlayers[i]->piece4};
+
+            int playerSteps = playerPiece->direction > 0? 53 : 55;
         
             for(int j=0; j<4; j++){
-                if(playerPiece->location == opponentPieces[j]->location){
+                
+                if((playerPiece->location == opponentPieces[j]->location) && (opponentPieces[j]->steps > 1) && !(playerSteps >= playerPiece->steps && playerPiece->captures > 0) ){
                     opponentPieces[j]->captures = 0;
                     opponentPieces[j]->direction = 1;
                     opponentPieces[j]->isAtBase = true;
@@ -469,7 +568,7 @@ void moveOrCapture(int steps, struct Piece *playerPiece, char color[10], struct 
                     opponentPieces[j]->location = 0;
                     opponentPieces[j]->steps = 0;
 
-                    printf("%s piece %s lands on square L%d, captures %s piece %s and returns it to base",color, playerPiece->pieceId, playerPiece->location, allPlayers[i]->color, opponentPieces[j]->pieceId);
+                    printf("%s piece %s lands on square L%d, captures %s piece %s and returns it to base\n",color, playerPiece->pieceId, playerPiece->location, allPlayers[i]->color, opponentPieces[j]->pieceId);
                 }
             }
         }        
@@ -515,7 +614,7 @@ void yellowPlayerBehaviour(struct Player *yellow, int consecutiveSixes, struct P
 
             // Find the closest piece to home that is not at the base
             for(int i = 0; i < 4; i++){
-                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps >  max->steps) && canMove() ){
+                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps >  max->steps) && canMove(playerPieces[i], dieValue) ){
                     max = playerPieces[i];
                 }
             }
@@ -538,7 +637,7 @@ void yellowPlayerBehaviour(struct Player *yellow, int consecutiveSixes, struct P
         else {
             // Find the closest piece to home that is not at the base
             for(int i = 0; i < 4; i++){
-                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps > max->steps) && canMove() ){
+                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps > max->steps) && canMove(playerPieces[i], dieValue) ){
                     max = playerPieces[i];
                 }
             }
@@ -564,7 +663,6 @@ void redPlayerBehaviour(){
 void greenPlayerBehaviour(struct Player *green, int consecutiveSixes, struct Player* players[4]){
 
     struct Piece *playerPieces[4] = {&green->piece1, &green->piece2, &green->piece3, &green->piece4};
-    struct Piece *max = NULL;
 
     int dieValue = rollDie();
 
@@ -594,17 +692,20 @@ void greenPlayerBehaviour(struct Player *green, int consecutiveSixes, struct Pla
             return;
         }
 
-        //If there is a block, move it
-        if(true){
-            // moveBlock();
+        //If a block exists, move it
+        if(!green->block1.isNull || !green->block2.isNull){
+            moveBlock(&green->block1, &green->block2, dieValue);
             return;
         }
 
-        //Moves the piece closest to home when a block cant be created, an existing block cant be moved and no pieces are at base
-
-        //Sets the peices that is drawn from base, is closest to home, can move and is not in a block to max
+        //Moves the piece closest to home; when a block cant be created, an existing block cant be moved and no pieces are at base
+        //Sets the peices that is; drawn from base, is closest to home, can move and is not in a block to max
+        struct Piece *max = NULL;
+        
+    
         for(int i = 0; i < 4; i++){
-            if((max == NULL || playerPieces[i]->steps > max->steps) && (playerPieces[i]->isAtBase) && canMove()){
+            printf("Test line 707\n");
+            if(max == NULL || ((playerPieces[i]->steps > max->steps) && !playerPieces[i]->isInBlock && canMove(playerPieces[i], dieValue))){
                 max = playerPieces[i];
             }
         }
@@ -614,22 +715,93 @@ void greenPlayerBehaviour(struct Player *green, int consecutiveSixes, struct Pla
             moveOrCapture(dieValue, max, green->color, players);
             
         }else{
-            //breaks a block as no other piece can be moved 
-            if(max != NULL){ 
-                max->isInBlock = false; //Breaks max piece from the block
-                moveOrCapture(dieValue, max, green->color, players);
+            //breaks a block as no other piece can be moved  (max is not found initially)
+            for(int i = 0; i < 4; i++){
+                if(max == NULL || ((playerPieces[i]->steps > max->steps) && canMove(playerPieces[i], dieValue))){
+                    max = playerPieces[i];
+            }
 
-            }else{
-                printf("No pieces can be moved\n");
-            } 
+            max->isInBlock = false;    
+            }
+            //Updating the location, steps to the current that of the block and setting isInBlock to false 
+            for(int i=0; i<4; i++){
+                if(green->block1.pieces[i] == max){
+                    max->location= green->block1.location;
+                    max->steps= green->block1.steps;
+
+                    break;
+                }
+
+                if(green->block2.pieces[i] == max){
+                    max->isInBlock = false;
+                    max->location= green->block2.location;
+                    max->steps= green->block2.steps;
+
+                    break;
+                }
+            }
+
+            moveOrCapture(dieValue, max, green->color, players);  
         }
+
         greenPlayerBehaviour(green, consecutiveSixes, players);
 
     }else{ //Logic when player rolls a valie that isn't a six
-        printf("This logic isnt set yet\n");
+
+        //If a block exists, move it
+        if(!green->block1.isNull || !green->block2.isNull){
+            moveBlock(&green->block1, &green->block2, dieValue);
+            return;
+        }
+
+        //If a block is not moveable, move a piece; 
+        struct Piece *max = NULL;
+        
+        for(int i = 0; i < 4; i++){
+            if(max == NULL || (playerPieces[i]->steps > max->steps && !playerPieces[i]->isAtBase && !playerPieces[i]->isInBlock && canMove(playerPieces[i], dieValue))){
+                max = playerPieces[i];
+            }
+        }
+
+        if(max != NULL){
+            // Move the max piece if found
+            moveOrCapture(dieValue, max, green->color, players);
+            
+        }else{
+            //breaks a block as no other piece can be moved  (max is not found initially)
+            for(int i = 0; i < 4; i++){
+                if((max == NULL || playerPieces[i]->steps > max->steps) && (!playerPieces[i]->isAtBase) && canMove(playerPieces[i], dieValue)){
+                    max = playerPieces[i];
+                }   
+            }  
+            
+            if(max == NULL){ //If max is still, then no pieces have have been drawn from base
+                printf("No pieces can be moved\n");
+                return; 
+            } 
+            //Updating the location, steps to the current that of the block and setting isInBlock to false 
+            
+            for(int i=0; i<4; i++){
+                if(green->block1.pieces[i] == max){
+                    max->isInBlock = false;
+                    max->location= green->block1.location;
+                    max->steps= green->block1.steps;
+
+                    break;
+                }
+
+                if(green->block2.pieces[i] == max){
+                    max->isInBlock = false;
+                    max->location= green->block2.location;
+                    max->steps= green->block2.steps;
+
+                    break;
+                }
+            }
+            
+            moveOrCapture(dieValue, max, green->color, players);  
+        }
     }
-
-
 }
 
 //Call player behviour based on the piece's color
@@ -663,35 +835,45 @@ void startGame(
 
     printf("\n");
 
-    while (true){
+    bool isGameOver = false;
+
+    while (!isGameOver){
+        int homeCount = 0;
+
         for(int i = 0; i<4; i++){
             if(players[i]->playOrder == currentTurn)
             {
                 getBehaviour(players[i]->color, players[i], players);
                 printf("\n");
 
+                // if(players[i]->piece1.isAtHome && players[i]->piece2.isAtHome && players[i]->piece3.isAtHome && players[i]->piece4.isAtHome){
+                //     isGameOver = true;
+                // }
+
                 currentTurn = (currentTurn % 4) + 1;
                 break; 
             }    
         }
-        
 
         //Loop controller Remove this!!!!!!!!!!!
+        
         count++;
-        if(count >100){
+        if(count > 600){
                 break;
         }
     }
 }
 
 void playLudo() {
+
     srand(time(NULL)); // Seed the random number generator
+
     // Initialize players
     struct Player yellow = {
-        {0, 1, 0, 0, true, false, "Y1"}, //Piece - location,direction,steps,captures,isAtBase,isInBlock,pieceID
-        {0, 1, 0, 0, true, false, "Y2"}, 
-        {0, 1, 0, 0, true, false, "Y3"}, 
-        {0, 1, 0, 0, true, false, "Y4"},
+        {0, 1, 0, 0, true, false, false, "Y1"}, //Piece - location,direction,steps,captures,isAtBase,isAtHome,isInBlock,pieceID
+        {0, 1, 0, 0, true, false, false, "Y2"}, 
+        {0, 1, 0, 0, true, false, false, "Y3"}, 
+        {0, 1, 0, 0, true, false, false, "Y4"},
 
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},  //Block - pieces, direction, location, isNUll
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
@@ -699,10 +881,10 @@ void playLudo() {
     };
 
     struct Player blue = {
-        {13, 1, 0, 0, true, false, "B1"}, 
-        {13, 1, 0, 0, true, false, "B2"}, 
-        {13, 1, 0, 0, true, false, "B3"}, 
-        {13, 1, 0, 0, true, false, "B4"},
+        {13, 1, 0, 0, true, false, false, "B1"}, 
+        {13, 1, 0, 0, true, false, false, "B2"}, 
+        {13, 1, 0, 0, true, false, false, "B3"}, 
+        {13, 1, 0, 0, true, false, false, "B4"},
 
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
@@ -711,10 +893,10 @@ void playLudo() {
     };
 
     struct Player red = {
-        {26, 1, 0, 0, true, false, "R1"}, 
-        {26, 1, 0, 0, true, false, "R2"}, 
-        {26, 1, 0, 0, true, false, "R3"}, 
-        {26, 1, 0, 0, true, false, "R4"},
+        {26, 1, 0, 0, true, false, false, "R1"}, 
+        {26, 1, 0, 0, true, false, false, "R2"}, 
+        {26, 1, 0, 0, true, false, false, "R3"}, 
+        {26, 1, 0, 0, true, false, false, "R4"},
         
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
@@ -723,10 +905,10 @@ void playLudo() {
     };
 
     struct Player green = {
-        {39, 1, 0, 0, true, false, "G1"},
-        {39, 1, 0, 0, true, false, "G2"}, 
-        {39, 1, 0, 0, true, false, "G3"}, 
-        {39, 1, 0, 0, true, false, "G4"},
+        {39, 1, 0, 0, true, false, false, "G1"},
+        {39, 1, 0, 0, true, false, false, "G2"}, 
+        {39, 1, 0, 0, true, false, false, "G3"}, 
+        {39, 1, 0, 0, true, false, false, "G4"},
         
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
@@ -737,10 +919,11 @@ void playLudo() {
     printIntro();
     playerOrder(&yellow, &blue, &red, &green);
     startGame(&yellow, &blue, &red, &green);
+
     printf("Green steps: %d\n", green.piece1.steps);
 
-    printf("Test value is: %d\n", testCaptures);
-    printf("Test value is: %d\n", testBlocks);
+    printf("Test Capture value is: %d\n", testCaptures);
+    printf("Test Block value is: %d\n", testBlocks);
 
     printf("\n");
 }
