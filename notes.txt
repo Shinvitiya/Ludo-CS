@@ -9,3 +9,6 @@ Destroy blocks, when 3 sixes are rolled consecutively
 Final
 -Modify capture piece to accomodate multiple pieces
 -Set print statement in that loop thingy in CreateBlock()
+
+canCreateBlock and CreateBLock do not account for the moving in the home straight. THis might be what leads to a segmentation error
+There is an error at moveBLock that gives a ngative value. Fix this
