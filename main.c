@@ -359,12 +359,10 @@ void createBlock(struct Player *player, int steps){
         for(int j=i+1; j<4; j++){
             
             if((newLocation == pieces[j]->location) && ((pieces[i]->steps + steps) < playerSteps) && pieces[j]->location > 0){
-                printf("In the loops");
                 pieces[i]->isInBlock = true;
                 pieces[i]->location = newLocation;
                 pieces[i]->steps = pieces[i]->steps + steps;
 
-                printf("Test Test 2\n");
                 //If both blocks of the player are empty, add the values to block1
                 if(player->block1.isNull && player->block2.isNull){
 
@@ -422,13 +420,8 @@ void createBlock(struct Player *player, int steps){
     if(block1NewLocation == player->block2.location){
         for(int i=0; i < 4; i++){
             for(int j=0; j<4; j++){
-
-                printf("Debug: i=%d, j=%d, block1.pieces[%d]=%p, block2.pieces[%d]=%p\n", i, j, i, player->block1.pieces[i], j, player->block2.pieces[j]);
                 
                 if(player->block2.pieces[j] == NULL && player->block1.pieces[i] != NULL){
-
-                    printf("Test 6\n");
-
                     player->block2.pieces[j] = player->block1.pieces[i];
                     player->block1.pieces[i] = NULL;
 
@@ -443,18 +436,7 @@ void createBlock(struct Player *player, int steps){
         player->block1.steps = 0;
 
         //Updating block2
-        printf("Test 7\n");
         updateBlockData(&player->block2);
-        printf("Test 8\n");
-
-        // printf("%s Player has created a block at L%d with pieces %s, %s, %s and %s.\n", 
-        //     player->color, 
-        //     player->block2.location, 
-        //     player->block2.pieces[0]->pieceId, 
-        //     player->block2.pieces[1]->pieceId, 
-        //     player->block2.pieces[2]->pieceId, 
-        //     player->block2.pieces[3]->pieceId
-        // );
         printf("%s Player has created a block at L%d\n", 
             player->color, 
             player->block2.location
@@ -484,27 +466,11 @@ void createBlock(struct Player *player, int steps){
         player->block2.location = 0;
         player->block2.steps = 0;
 
-        //Updating1
-        printf("Test 11\n");
         updateBlockData(&player->block1);
-        printf("Test 12\n");
 
-        // printf("%s Player has created a block at L%d with pieces %s, %s, %s and %s.\n", 
-        //     player->color, 
-        //     player->block1.location, 
-        //     player->block1.pieces[0]->pieceId, 
-        //     player->block1.pieces[1]->pieceId, 
-        //     player->block1.pieces[2]->pieceId, 
-        //     player->block1.pieces[3]->pieceId
-        // );
-
-        printf("%s Player has created a block at L%d with pieces %s, %s, %s, and %s.\n", 
+        printf("%s Player has created a block at L%d\n", 
             player->color, 
-            player->block1.location, 
-            player->block1.pieces[0] ? player->block1.pieces[0]->pieceId : "NULL", 
-            player->block1.pieces[1] ? player->block1.pieces[1]->pieceId : "NULL", 
-            player->block1.pieces[2] ? player->block1.pieces[2]->pieceId : "NULL", 
-            player->block1.pieces[3] ? player->block1.pieces[3]->pieceId : "NULL"
+            player->block1.location
         );
         return;
     }
@@ -732,36 +698,42 @@ void moveBlock(struct Block *block1, struct Block *block2, int steps, char color
 
 //Breaks all the blocks of a player
 void breakBlock(struct Player *player){
-    struct Block *block1 = &player->block1;
-    struct Block *block2 = &player->block2;
+    struct Block* blocks[4] = {&player->block1, &player->block2};
 
-    for(int i=0; i<4; i++){
-        if(block1->pieces[i] != NULL){
-            block1->pieces[i]->location = block1->location;
-            block1->pieces[i]->isInBlock = false;
-            block1->pieces[i] = NULL;
+    for(int j=0; j<2; j++){
+        for(int i=0; i<4; i++){
+            if(!blocks[j]->isNull && blocks[j]->pieces[i] != NULL){
+
+                //Updating steps for pieces
+                if(blocks[j]->pieces[i]->direction != blocks[j]->direction){
+                    if(blocks[j]->steps == 1){
+                        blocks[j]->pieces[i]->steps  = 1;
+                    }else if(blocks[j]->steps == 0){
+                        blocks[j]->pieces[i]->steps  = 2;
+                    }else{
+                        blocks[j]->pieces[i]->steps  = abs(54 - blocks[j]->steps);
+                    }
+                }else{
+                    blocks[j]->pieces[i]->steps = blocks[j]->steps;
+                }
+                //Updating other info
+                blocks[j]->pieces[i]->location = blocks[j]->location;
+                blocks[j]->pieces[i]->isInBlock = false;
+                blocks[j]->pieces[i] = NULL;
+
+                
+                
+            }
         }
-    }
-
-    for(int i=0; i<4; i++){
-        if(block2->pieces[i] != NULL){
-            block2->pieces[i]->location = block2->location;
-            block2->pieces[i]->isInBlock = false;
-            block2->pieces[i] = NULL;
+        if(!blocks[j]->isNull){
+            blocks[j]->steps = 0;
+            blocks[j]->location = 0;
+            blocks[j]->dieValueDivider = 1;
+            blocks[j]->direction = 1;
+            blocks[j]->isNull = true;
         }
+        
     }
-
-    block1->steps = 0;
-    block1->location = 0;
-    block1->dieValueDivider = 1;
-    block1->direction = 1;
-    block1->isNull = true;
-
-    block2->steps = 0;
-    block2->location = 0;
-    block2->dieValueDivider = 1;
-    block2->direction = 1;
-    block2->isNull = true;
 
     printf("All blocks of %s player has been broken\n", player->color);
 
