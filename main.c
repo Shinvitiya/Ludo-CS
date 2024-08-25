@@ -910,12 +910,93 @@ void yellowPlayerBehaviour(struct Player *yellow, int consecutiveSixes, struct P
     }
 }
 
-void bluePlayerBehaviour(){
-    printf("This is the blue player's AI\n");
+void bluePlayerBehaviour(struct Player *blue, int consecutiveSixes, struct Player* players[4]){
+    int dieValue = rollDie();
+    printf("Blue has rolled %d\n", dieValue);
+
+    struct Piece *playerPieces[4] = {&blue->piece1, &blue->piece2, &blue->piece3, &blue->piece4};
+    struct Piece *max = NULL; // Initialize to NULL
+
+    if(dieValue ==6){
+        consecutiveSixes++;
+        
+
+    }else{
+
+    }
 }
 
-void redPlayerBehaviour(){
-    printf("This is the red player's AI\n");
+void redPlayerBehaviour(struct Player *red, int consecutiveSixes, struct Player* players[4]){
+
+    int dieValue = rollDie();
+    printf("Red has rolled %d\n", dieValue);
+
+    struct Piece *playerPieces[4] = {&red->piece1, &red->piece2, &red->piece3, &red->piece4};
+    struct Piece *max = NULL; // Initialize to NULL
+
+    bool capturePossible = false;
+    for (int i = 0; i < 4; i++) {
+        for(int j=0; j<4; j++){
+            if (players[i] != red && canCapture(playerPieces[i], players[j], dieValue) ) {
+                capturePossible = true;
+                break;
+            }
+        }     
+    }
+
+    if(dieValue ==6){
+        consecutiveSixes ++;
+
+        if (consecutiveSixes == 3) {
+            printf("Yellow rolled three consecutive 6s! Turn is passed to the next player.\n");
+            breakBlock(red);
+            return;
+        }
+
+        if(capturePossible){
+            capturePiece(players, red, dieValue);
+
+        }else if(arePiecesAtBase(red)) {
+            drawPiece(red);
+
+        } else {
+
+            // Find the closest piece to home that is not at the base
+            for(int i = 0; i < 4; i++){
+                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps >  max->steps) && canMove(playerPieces[i], dieValue) ){
+                    max = playerPieces[i];
+                }
+            }
+
+            // Move the piece if found
+            if(max != NULL){
+                movePiece(dieValue, max, red->color);
+            }else{
+                printf("No pieces can be moved\n");
+            }
+        }
+        redPlayerBehaviour(red, consecutiveSixes, players);
+    }else {
+
+        if (capturePossible) {
+            capturePiece(players, red, dieValue);
+            redPlayerBehaviour(red, consecutiveSixes, players);
+        } 
+        else {
+            // Find the closest piece to home that is not at the base
+            for(int i = 0; i < 4; i++){
+                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps > max->steps) && canMove(playerPieces[i], dieValue) ){
+                    max = playerPieces[i];
+                }
+            }
+            // Move the piece if found
+            if(max != NULL){
+                movePiece(dieValue, max, red->color);
+            }else{
+                printf("No pieces can be moved\n");
+            }
+        }
+    }
 }
 
 void greenPlayerBehaviour(struct Player *green, int consecutiveSixes, struct Player* players[4]){
@@ -1074,7 +1155,7 @@ void getBehaviour(char color[10], struct Player *player, struct Player* players[
 
     } else if (strcmp(color, "Red") == 0) {
         //redPlayerBehaviour();
-        yellowPlayerBehaviour(player, consecutiveSixes, players);
+        redPlayerBehaviour(player, consecutiveSixes, players);
 
     } else {
         greenPlayerBehaviour(player, consecutiveSixes, players);
