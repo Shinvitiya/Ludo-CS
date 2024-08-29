@@ -9,6 +9,7 @@
 
 int testCaptures = 0; //Remove this
 int mysteryCellLocation = 1000; //
+int landingCount = 0;
 
 struct Piece {
     int location; //Tracks which cell the piece is curerntly on
@@ -225,10 +226,15 @@ void updateMysterCell(int roundCounter, struct Player *players[4]){
     }
 }
 
-void teleportPieces(struct Piece *piece, int steps, char color[10]){
+void teleportPieces(struct Piece *piece, char color[10]){
     //Creates a list with the following locations 
     //[0.Bhawana, 1.Kotuwa, 2.Pita Kotuwa, 3.Base, 4.X of the player, 5.Approach of the player]
-    int randomLocations[6] = {9,27,46,0,0,0};
+    int randomLocations[6] = {7,25,44,0,0,0};
+    int bhawanaSteps = 0;
+    int kotuwaSteps =0;
+    int pitaKotuwaSteps =0;
+
+    landingCount ++;
 
 
     //Setting base, X  and approach cell locations based on the player
@@ -236,21 +242,36 @@ void teleportPieces(struct Piece *piece, int steps, char color[10]){
         randomLocations[3] = 0; //Setting base location
         randomLocations[4] = 0; //Setting X location
         randomLocations[5] = 50; //Setting Approach cell location
+        bhawanaSteps = 8;
+        kotuwaSteps = 26;
+        pitaKotuwaSteps = 45;
 
     } else if (strcmp(color, "Blue") == 0) {
         randomLocations[3] = 13;
         randomLocations[4] = 13;
         randomLocations[5] = 11;
 
+        bhawanaSteps = 47;
+        kotuwaSteps = 13;
+        pitaKotuwaSteps = 32;
+
     } else if (strcmp(color, "Red") == 0) {
         randomLocations[3] = 26;
         randomLocations[4] = 26;
         randomLocations[5] = 24;
 
+        bhawanaSteps = 34;
+        kotuwaSteps = 0;
+        pitaKotuwaSteps = 19;
+
     } else {
         randomLocations[3] = 39;
         randomLocations[4] = 39;
         randomLocations[5] = 37;
+
+        bhawanaSteps = 21;
+        kotuwaSteps = 35;
+        pitaKotuwaSteps = 6;
     }
 
     int randomIndex = rand() % 6;
@@ -263,7 +284,7 @@ void teleportPieces(struct Piece *piece, int steps, char color[10]){
 
         float aura = (rand() % 2 == 0) ? 0.5f : 2.0f;
         piece->aura = aura;
-        //piece->steps = 0;
+        piece->steps = piece->direction > 0? bhawanaSteps: 54-bhawanaSteps;
 
         printf("%s piece %s teleported to Bhawana\n", color, piece->pieceId);
 
@@ -283,6 +304,7 @@ void teleportPieces(struct Piece *piece, int steps, char color[10]){
             printf("%s piece %s is movement restricted and has rolled three consecutively. Teleporting piece %s to base\n", color, piece->pieceId, piece->pieceId);
         }
         else {
+            piece->steps = piece->direction > 0 ? kotuwaSteps : 54 - kotuwaSteps;
             printf("%s piece %s attends briefing and cannot move for four rounds\n", color, piece->pieceId);
         }
 
@@ -291,12 +313,12 @@ void teleportPieces(struct Piece *piece, int steps, char color[10]){
 
         if(piece->direction > 0){
             piece->direction = -1; //Changing piece's directiom
-            piece->steps = 0;
+            piece->steps = pitaKotuwaSteps;
             printf("The %s piece %s which was moving clockwise, has changed to moving counterclockwise\n", color, piece->pieceId);
 
         } else{
             piece->location =randomLocations[1]; //Teleporting to Kotuwa
-            piece->steps =0;
+            piece->steps = 54 - kotuwaSteps;
             printf("The %s piece %s is moving in a counter clockwise direction. The Teleporting to Kotuwa from Pita-Kotuwa\n", color, piece->pieceId);
         }
 
@@ -369,6 +391,11 @@ void movePiece(int steps, struct Piece *piece, char color[10]){
     int prevLocation = piece->location;
     piece->location = (52 + piece->location + piece->direction * steps) % 52;
     piece->steps = piece->steps + steps;
+
+    if(piece->location == mysteryCellLocation){
+        teleportPieces(piece, color);
+        return;
+    }
 
 
     //Moving pieces with captures 1 into home straight
@@ -895,7 +922,7 @@ bool canCapture(struct Piece *currentPiece, struct Player *opponent, int steps) 
     for(int i =0; i<4; i++){
 
         int newLocation = (TOTAL_STEPS+ currentPiece->location + (steps * currentPiece->direction)) %TOTAL_STEPS;
-        int playerSteps = currentPiece->direction > 0? 53 : 55;
+        int playerSteps = currentPiece->direction > 0? 531 : 53;
 
         if((newLocation == opponentPieces[i]->location) && (opponentPieces[i]->steps > 1) && !((currentPiece->steps + steps > playerSteps) && (currentPiece->captures > 0 ) && !opponentPieces[i]->isAtHome)){
             return true;
@@ -920,7 +947,7 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
 
                 int prevLocation = currentPlayerPieces[j]->location;
                 int newLocation =  (TOTAL_STEPS + currentPlayerPieces[j]->location + (steps * currentPlayerPieces[j]->direction)) % TOTAL_STEPS;
-                int playerSteps = currentPlayerPieces[j]->direction > 0? 53 : 55;
+                int playerSteps = currentPlayerPieces[j]->direction > 0? 51 : 53;
 
                 //Looping thorugh all the pieces of the opponent 
                 for(int k=0; k<4; k++){
@@ -966,7 +993,7 @@ void moveOrCapture(int steps, struct Piece *playerPiece, char color[10], struct 
 
             struct Piece *opponentPieces[4] = {&allPlayers[i]->piece1, &allPlayers[i]->piece2, &allPlayers[i]->piece3, &allPlayers[i]->piece4};
 
-            int playerSteps = playerPiece->direction > 0? 53 : 55;
+            int playerSteps = playerPiece->direction > 0? 51 : 53;
         
             for(int j=0; j<4; j++){
                 
@@ -1431,6 +1458,7 @@ void playLudo() {
 
     printf("Test Capture value is: %d\n", testCaptures);
     printf("The final mystery cell location is %d\n", mysteryCellLocation);
+    printf("Landing count: %d\n", landingCount);
 
     printf("\n");
 }
