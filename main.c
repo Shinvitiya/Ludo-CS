@@ -10,6 +10,7 @@
 int testCaptures = 0; //Remove this
 int mysteryCellLocation = 1000; //
 int landingCount = 0;
+int currentBluePiece = 0;
 
 struct Piece {
     int location; //Tracks which cell the piece is curerntly on
@@ -343,6 +344,7 @@ void teleportPieces(struct Piece *piece, char color[10]){
 }
 
 //Checks if piece can move(Due to blocks or not sufficient blocks in home straight)
+
 bool canMove(struct Piece *piece, int steps){
     //Setting steps based on the piece's aura
     steps = (int)(piece->aura * steps);
@@ -361,11 +363,6 @@ bool canMove(struct Piece *piece, int steps){
         return true;
     }
 
-    //Piece that cant enter the home straight
-    if(piece->captures < 1){
-        return true;
-    }
-
     //Piece that can enter the home straight but havent reached the O-block
     if(piece->captures > 0 && piece->direction > 0 && piece->steps < 51){
         return true;
@@ -375,8 +372,14 @@ bool canMove(struct Piece *piece, int steps){
         return true;
     }
 
+    //Piece that cant enter the home straight
+    if(!piece->isAtBase && !piece->isAtHome){
+        return true;
+    }
+
     return false;
 }
+
 
 //Checks if the opponents have created a block and whether the piece cqn move forward or not
 bool isPathBlocked(){
@@ -1075,7 +1078,7 @@ void yellowPlayerBehaviour(struct Player *yellow, int consecutiveSixes, struct P
         else {
             // Find the closest piece to home that is not at the base
             for(int i = 0; i < 4; i++){
-                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps > max->steps) && canMove(playerPieces[i], dieValue) ){
+                if(!playerPieces[i]->isAtBase && (max == NULL || playerPieces[i]->steps > max->steps) && canMove(playerPieces[i], dieValue)){
                     max = playerPieces[i];
                 }
             }
@@ -1100,9 +1103,37 @@ void bluePlayerBehaviour(struct Player *blue, int consecutiveSixes, struct Playe
     if(dieValue ==6){
         consecutiveSixes++;
 
+        if (consecutiveSixes == 3) {
+            printf("Blue rolled three consecutive 6s! Turn is passed to the next player.\n");
+            breakBlock(blue);
+            return;
+        }
+
+        //Checks of the player can move to the mystery cell
+        bool canMoveToMysteryCell = (52 + playerPieces[currentBluePiece]->location + playerPieces[currentBluePiece]->direction * (int)(dieValue * playerPieces[currentBluePiece]->aura)) % 52 == mysteryCellLocation;
+
+        if(playerPieces[currentBluePiece]->direction > 0 && !playerPieces[currentBluePiece]->isAtBase || playerPieces[currentBluePiece]->direction < 0 && !playerPieces[currentBluePiece]->isAtBase && !canMoveToMysteryCell){
+
+            moveOrCapture(dieValue, playerPieces[currentBluePiece], blue->color, players);
+            currentBluePiece = (currentBluePiece +1) % 4;
+            
+        }else if(arePiecesAtBase(blue)){
+            drawPiece(blue);
+        }else{
+            printf("No pices can be moved\n");
+        }
+
+        bluePlayerBehaviour(blue, consecutiveSixes, players);
 
     }else{
+        bool canMoveToMysteryCell = (52 + playerPieces[currentBluePiece]->location + playerPieces[currentBluePiece]->direction * (int)(dieValue * playerPieces[currentBluePiece]->aura)) % 52 == mysteryCellLocation;
 
+        if(playerPieces[currentBluePiece]->direction > 0 && !playerPieces[currentBluePiece]->isAtBase || playerPieces[currentBluePiece]->direction < 0 && !playerPieces[currentBluePiece]->isAtBase && !canMoveToMysteryCell){
+
+            moveOrCapture(dieValue, playerPieces[currentBluePiece], blue->color, players);
+            currentBluePiece = (currentBluePiece +1) % 4;
+            
+        }
     }
 }
 
@@ -1128,7 +1159,7 @@ void redPlayerBehaviour(struct Player *red, int consecutiveSixes, struct Player*
         consecutiveSixes ++;
 
         if (consecutiveSixes == 3) {
-            printf("Yellow rolled three consecutive 6s! Turn is passed to the next player.\n");
+            printf("Red rolled three consecutive 6s! Turn is passed to the next player.\n");
             breakBlock(red);
             return;
         }
@@ -1331,7 +1362,7 @@ void getBehaviour(char color[10], struct Player *player, struct Player* players[
 
     } else if (strcmp(color, "Blue") == 0) {
         //bluePlayerBehaviour();
-        yellowPlayerBehaviour(player, consecutiveSixes, players);
+        bluePlayerBehaviour(player, consecutiveSixes, players);
 
     } else if (strcmp(color, "Red") == 0) {
         redPlayerBehaviour(player, consecutiveSixes, players);
@@ -1371,11 +1402,6 @@ void startGame(
                 break; 
             }    
         }
-        
-        //Incrementing the round counter when all the 4 players can taken their turns
-        roundCounter = turnCounter%4 ==0? roundCounter+1 : roundCounter;
-
-        updateMysterCell(roundCounter, players);
 
         //Check if a player has brought all players to home and end game;
         for(int i=0; i<4; i++){
@@ -1386,6 +1412,13 @@ void startGame(
                     break;
             }
         }
+        
+        //Incrementing the round counter when all the 4 players can taken their turns
+        roundCounter = turnCounter%4 ==0? roundCounter+1 : roundCounter;
+
+        updateMysterCell(roundCounter, players);
+
+        
     }
 }
 
@@ -1445,20 +1478,6 @@ void playLudo() {
     printIntro();
     playerOrder(&yellow, &blue, &red, &green);
     startGame(&yellow, &blue, &red, &green);
-
-    printf("\nGreen 1 steps: %d\n", green.piece1.location);
-    printf("Green 2 steps: %d\n", green.piece2.location);
-    printf("Green 3 steps: %d\n", green.piece3.location);
-    printf("Green 4 steps: %d\n", green.piece4.location);
-
-    printf("Yellow 1 steps: %d Is 1 at home: %s\n", yellow.piece1.steps, yellow.piece1.isAtHome? "Yes": "No");
-    printf("Yellow 2 steps: %d Is 2 at home: %s\n", yellow.piece2.steps, yellow.piece2.isAtHome? "Yes": "No");
-    printf("Yellow 3 steps: %d Is 3 at home: %s\n", yellow.piece3.steps, yellow.piece3.isAtHome? "Yes": "No");
-    printf("Yellow 4 steps: %d Is 4 at home: %s\n\n", yellow.piece4.steps, yellow.piece4.isAtHome? "Yes": "No");
-
-    printf("Test Capture value is: %d\n", testCaptures);
-    printf("The final mystery cell location is %d\n", mysteryCellLocation);
-    printf("Landing count: %d\n", landingCount);
 
     printf("\n");
 }
