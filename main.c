@@ -8,13 +8,14 @@
 //--------Defining Structures-----------//
 
 int testCaptures = 0; //Remove this
-int testBlocks = 0;
+int mysteryCellLocation = 1000; //
 
 struct Piece {
     int location; //Tracks which cell the piece is curerntly on
     int direction; //Tracks is the player should move clockwise or anticlockwise
     int steps; // Keeps track of the steps the piece has taken with respective to reaching the home straight
     int captures; //Keeps track if the piece has captured a piece
+    float aura; //Tracks the aura of the piece
     bool isAtBase; //Tracks if the piece is drawn or at the base. 
     bool isAtHome; //Tracks if teh piece has reached home false,
     bool isInBlock; //Tracks if the piece is in a block.
@@ -151,7 +152,7 @@ bool arePiecesAtBase(struct Player *player){
     }
     return false;
 }
-//Print the number or players at the base and on the board
+//Print the number of players at the base and on the board
 void getPlayerCount(struct Player *player){
     struct Piece* pieces[4] = {&player->piece1, &player->piece2, &player->piece3, &player->piece4};
 
@@ -164,6 +165,7 @@ void getPlayerCount(struct Player *player){
     }
     printf("%s player now has %d/4 on the board and %d/4 pieces on the base\n", player->color, 4 - playersAtBaseCount, playersAtBaseCount);
 }
+
 
 //Move a player piece to the base and set it's direction
 void drawPiece(struct Player *player){
@@ -184,8 +186,148 @@ void drawPiece(struct Player *player){
     }
 }
 
+//Checks if any pieces are on the cell
+bool arePiecesOnCell(int mysteryCellLocation, struct Player *players[4]){
+    for(int i=0; i<4; i++){
+
+        if(players[i]->piece1.location == mysteryCellLocation){
+            return true;
+        }
+        if(players[i]->piece2.location == mysteryCellLocation){
+            return true;
+        }
+        if(players[i]->piece3.location == mysteryCellLocation){
+            return true;
+        }
+        if(players[i]->piece4.location == mysteryCellLocation){
+            return true;
+        }
+    }
+
+    return false;
+}
+
+//Updates the location of the myster cell
+void updateMysterCell(int roundCounter, struct Player *players[4]){
+    //Runs during the second round and every 4 rounds after that
+    if((roundCounter-2)%4 ==0){
+
+        //Generate a random number between 0 and 51
+        int randomCellLocation = rand() % 52;
+
+        //Checks if the new random location if the same if
+        if(randomCellLocation == mysteryCellLocation || arePiecesOnCell(randomCellLocation, players)){
+            updateMysterCell(roundCounter, players);
+        }else{
+            mysteryCellLocation = randomCellLocation;
+            printf("Mystery Cell has spawned in location L%d and will be at that location for the next 4 rounds\n\n", mysteryCellLocation);
+        }
+    }
+}
+
+void teleportPieces(struct Piece *piece, int steps, char color[10]){
+    //Creates a list with the following locations 
+    //[0.Bhawana, 1.Kotuwa, 2.Pita Kotuwa, 3.Base, 4.X of the player, 5.Approach of the player]
+    int randomLocations[6] = {9,27,46,0,0,0};
+
+
+    //Setting base, X  and approach cell locations based on the player
+    if (strcmp(color, "Yellow") == 0) {
+        randomLocations[3] = 0; //Setting base location
+        randomLocations[4] = 0; //Setting X location
+        randomLocations[5] = 50; //Setting Approach cell location
+
+    } else if (strcmp(color, "Blue") == 0) {
+        randomLocations[3] = 13;
+        randomLocations[4] = 13;
+        randomLocations[5] = 11;
+
+    } else if (strcmp(color, "Red") == 0) {
+        randomLocations[3] = 26;
+        randomLocations[4] = 26;
+        randomLocations[5] = 24;
+
+    } else {
+        randomLocations[3] = 39;
+        randomLocations[4] = 39;
+        randomLocations[5] = 37;
+    }
+
+    int randomIndex = rand() % 6;
+    int randomLocation = randomLocations[randomIndex];
+    piece->location = randomLocation;
+
+    printf("%s player lands on a mystery cell and is teleported to L%d\n\n", color, randomLocation);
+
+    if(randomIndex ==0){ //Bhawana
+
+        float aura = (rand() % 2 == 0) ? 0.5f : 2.0f;
+        piece->aura = aura;
+        //piece->steps = 0;
+
+        printf("%s piece %s teleported to Bhawana\n", color, piece->pieceId);
+
+        aura > 0? printf("%s piece %s feels energized and movement piece doubles.\n",color, piece->pieceId) : printf("%s piece %s feels sick and movement piece halves.\n",color, piece->pieceId);
+
+         
+    }else if(randomIndex ==1){ //Kotuwa
+        printf("%s piece %s teleported to Kotuwa\n", color, piece->pieceId);
+
+        if(false){
+            piece->captures = 0;
+            piece->direction =0;
+            piece->isAtBase = true;
+            piece->isInBlock= false;
+            piece->steps=0;
+
+            printf("%s piece %s is movement restricted and has rolled three consecutively. Teleporting piece %s to base\n", color, piece->pieceId, piece->pieceId);
+        }
+        else {
+            printf("%s piece %s attends briefing and cannot move for four rounds\n", color, piece->pieceId);
+        }
+
+    }else if(randomIndex ==2){ //Pitakotuwa
+        printf("%s piece %s teleported to Pita-Kotuwa\n", color, piece->pieceId);
+
+        if(piece->direction > 0){
+            piece->direction = -1; //Changing piece's directiom
+            piece->steps = 0;
+            printf("The %s piece %s which was moving clockwise, has changed to moving counterclockwise\n", color, piece->pieceId);
+
+        } else{
+            piece->location =randomLocations[1]; //Teleporting to Kotuwa
+            piece->steps =0;
+            printf("The %s piece %s is moving in a counter clockwise direction. The Teleporting to Kotuwa from Pita-Kotuwa\n", color, piece->pieceId);
+        }
+
+    }else if(randomIndex ==3){ //Base
+        piece->captures = 0;
+        piece->direction =0;
+        piece->isAtBase = true;
+        piece->isInBlock= false;
+        piece->steps=0;
+
+        printf("%s piece %s teleported to Base\n", color, piece->pieceId);
+
+    }else if(randomIndex ==4){ // X 
+        piece->steps=0;
+        printf("%s piece %s teleported to X\n", color, piece->pieceId);
+
+    }else{ //Approach cell
+        piece->steps=0;
+        printf("%s piece %s teleported to Approach\n", color, piece->pieceId);
+
+    }
+}
+
 //Checks if piece can move(Due to blocks or not sufficient blocks in home straight)
 bool canMove(struct Piece *piece, int steps){
+    //Setting steps based on the piece's aura
+    steps = (int)(piece->aura * steps);
+
+    if(steps <=1){
+        return false;
+    }
 
     //Piece with clockwise direction moving in the home straight
     if(piece->direction > 0 && piece->steps >=51 && (piece->steps + steps) <=57 && !piece->isAtHome && piece->captures >0){
@@ -221,6 +363,9 @@ bool isPathBlocked(){
 
 //Move  player piece based on the value rolled and the direction of movement
 void movePiece(int steps, struct Piece *piece, char color[10]){
+
+    steps = (int)(piece->aura * steps);
+
     int prevLocation = piece->location;
     piece->location = (52 + piece->location + piece->direction * steps) % 52;
     piece->steps = piece->steps + steps;
@@ -288,6 +433,7 @@ bool canCreateBlock(struct Player *player, int steps){
 
     struct Piece pieces[4] = {player->piece1, player->piece2, player->piece3, player->piece4};
     struct Block blocks[2] = {player->block1, player->block2};
+
 
     //When the player has no blocks, checks if a block can be made by moving a piece;
     if(player->block1.isNull && player->block2.isNull){
@@ -742,6 +888,8 @@ void breakBlock(struct Player *player){
 //Checks if a piece of another player can be captured
 bool canCapture(struct Piece *currentPiece, struct Player *opponent, int steps) {
 
+    steps = (int)(currentPiece->aura * steps);
+
     struct Piece* opponentPieces[4] = {&opponent->piece1, &opponent->piece2, &opponent->piece3, &opponent->piece4};
 
     for(int i =0; i<4; i++){
@@ -768,6 +916,8 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
             
             //Looping through the all the pieces of the current Player
             for(int j=0; j<4; j++){
+                steps = (int)(currentPlayerPieces[j]->aura * steps);
+
                 int prevLocation = currentPlayerPieces[j]->location;
                 int newLocation =  (TOTAL_STEPS + currentPlayerPieces[j]->location + (steps * currentPlayerPieces[j]->direction)) % TOTAL_STEPS;
                 int playerSteps = currentPlayerPieces[j]->direction > 0? 53 : 55;
@@ -806,7 +956,10 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
 //Moves piece (X) by the based on the die roll and any captures opponents piece if it is on the square X lands on 
 void moveOrCapture(int steps, struct Piece *playerPiece, char color[10], struct Player *allPlayers[4]){
 
+    steps = (int)(playerPiece->aura * steps);
+
     movePiece(steps, playerPiece, color); //Change to normal
+
     for(int i=0; i<4; i++){
 
         if (strcmp(color, allPlayers[i]->color) != 0) {
@@ -919,7 +1072,7 @@ void bluePlayerBehaviour(struct Player *blue, int consecutiveSixes, struct Playe
 
     if(dieValue ==6){
         consecutiveSixes++;
-        
+
 
     }else{
 
@@ -1154,7 +1307,6 @@ void getBehaviour(char color[10], struct Player *player, struct Player* players[
         yellowPlayerBehaviour(player, consecutiveSixes, players);
 
     } else if (strcmp(color, "Red") == 0) {
-        //redPlayerBehaviour();
         redPlayerBehaviour(player, consecutiveSixes, players);
 
     } else {
@@ -1176,10 +1328,11 @@ void startGame(
     printf("\n");
 
     bool isGameOver = false;
+    int roundCounter = 0;
+    int turnCounter =0;
 
     while (!isGameOver){
-        int homeCount = 0;
-
+        
         for(int i = 0; i<4; i++){
             if(players[i]->playOrder == currentTurn)
             {
@@ -1187,9 +1340,15 @@ void startGame(
                 printf("\n");
 
                 currentTurn = (currentTurn % 4) + 1;
+                turnCounter +=1;
                 break; 
             }    
         }
+        
+        //Incrementing the round counter when all the 4 players can taken their turns
+        roundCounter = turnCounter%4 ==0? roundCounter+1 : roundCounter;
+
+        updateMysterCell(roundCounter, players);
 
         //Check if a player has brought all players to home and end game;
         for(int i=0; i<4; i++){
@@ -1209,10 +1368,11 @@ void playLudo() {
 
     // Initialize players
     struct Player yellow = {
-        {0, 1, 0, 0, true, false, false, "Y1"}, //Piece - location,direction,steps,captures,isAtBase,isAtHome,isInBlock,pieceID
-        {0, 1, 0, 0, true, false, false, "Y2"}, 
-        {0, 1, 0, 0, true, false, false, "Y3"}, 
-        {0, 1, 0, 0, true, false, false, "Y4"},
+        //Piece - location,direction,steps,captures,aura,isAtBase,isAtHome,isInBlock,pieceID
+        {0, 1, 0, 0, 1, true, false, false, "Y1"}, 
+        {0, 1, 0, 0, 1, true, false, false, "Y2"}, 
+        {0, 1, 0, 0, 1, true, false, false, "Y3"}, 
+        {0, 1, 0, 0, 1, true, false, false, "Y4"},
 
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},  //Block - pieces, direction, location, isNUll
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
@@ -1220,10 +1380,10 @@ void playLudo() {
     };
 
     struct Player blue = {
-        {13, 1, 0, 0, true, false, false, "B1"}, 
-        {13, 1, 0, 0, true, false, false, "B2"}, 
-        {13, 1, 0, 0, true, false, false, "B3"}, 
-        {13, 1, 0, 0, true, false, false, "B4"},
+        {13, 1, 0, 0, 1, true, false, false, "B1"}, 
+        {13, 1, 0, 0, 1, true, false, false, "B2"}, 
+        {13, 1, 0, 0, 1, true, false, false, "B3"}, 
+        {13, 1, 0, 0, 1, true, false, false, "B4"},
 
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
@@ -1232,10 +1392,10 @@ void playLudo() {
     };
 
     struct Player red = {
-        {26, 1, 0, 0, true, false, false, "R1"}, 
-        {26, 1, 0, 0, true, false, false, "R2"}, 
-        {26, 1, 0, 0, true, false, false, "R3"}, 
-        {26, 1, 0, 0, true, false, false, "R4"},
+        {26, 1, 0, 0, 1, true, false, false, "R1"}, 
+        {26, 1, 0, 0, 1, true, false, false, "R2"}, 
+        {26, 1, 0, 0, 1, true, false, false, "R3"}, 
+        {26, 1, 0, 0, 1, true, false, false, "R4"},
         
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
@@ -1244,10 +1404,10 @@ void playLudo() {
     };
 
     struct Player green = {
-        {39, 1, 0, 0, true, false, false, "G1"},
-        {39, 1, 0, 0, true, false, false, "G2"}, 
-        {39, 1, 0, 0, true, false, false, "G3"}, 
-        {39, 1, 0, 0, true, false, false, "G4"},
+        {39, 1, 0, 0, 1, true, false, false, "G1"},
+        {39, 1, 0, 0, 1, true, false, false, "G2"}, 
+        {39, 1, 0, 0, 1, true, false, false, "G3"}, 
+        {39, 1, 0, 0, 1, true, false, false, "G4"},
         
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
         { {NULL, NULL, NULL, NULL}, 1, 0, 1, 0, true},
@@ -1270,7 +1430,7 @@ void playLudo() {
     printf("Yellow 4 steps: %d Is 4 at home: %s\n\n", yellow.piece4.steps, yellow.piece4.isAtHome? "Yes": "No");
 
     printf("Test Capture value is: %d\n", testCaptures);
-    printf("Test Block value is: %d\n", testBlocks);
+    printf("The final mystery cell location is %d\n", mysteryCellLocation);
 
     printf("\n");
 }
