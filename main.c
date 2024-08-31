@@ -7,7 +7,6 @@
 #define TOTAL_STEPS 52
 //--------Defining Structures-----------//
 
-int testCaptures = 0; //Remove this
 int mysteryCellLocation = 1000; //
 int landingCount = 0;
 int currentBluePiece = 0;
@@ -39,7 +38,7 @@ struct Player {
     struct Piece piece3;
     struct Piece piece4;
 
-    //Two Blocks are called since the maximum number if blocks a player can create is 2
+    //Two Blocks are called since the maximum number of blocks a player can create is 2
     struct Block block1; 
     struct Block block2;
     
@@ -105,6 +104,7 @@ void playerOrder(
     }
     printf("\n");
 
+    //Getting the index of max roll
     int maxIndex = 0;
     for (int i = 1; i < 4; i++) {
         if (rolls[i] > rolls[maxIndex]) {
@@ -166,6 +166,41 @@ void getPlayerCount(struct Player *player){
         }
     }
     printf("%s player now has %d/4 on the board and %d/4 pieces on the base\n", player->color, 4 - playersAtBaseCount, playersAtBaseCount);
+}
+
+//Displaying the piece locations at the end of each round
+void displayPlayerStats(struct Player *players[4], int roundCounter){
+    for(int i=0; i<4; i++){
+        struct Piece *pieces[4] = {&players[i]->piece1, &players[i]->piece2, &players[i]->piece3, &players[i]->piece4};
+
+        getPlayerCount(players[i]);
+        printf("============================\n");
+        printf("Location of pieces %s\n", players[i]->color);
+        printf("============================\n");
+
+        for(int j=0; j<4; j++){
+            if(pieces[j]->isAtBase){ //When the piece is at the base
+                printf("%s -> Base\n", pieces[i]->pieceId);
+
+            }else if(pieces[j]->isAtHome){ //When the piece at Home
+                printf("%s -> Home\n", pieces[i]->pieceId);
+
+            }else if(pieces[j]->location == 500){ //When the piece is in the home straight
+                int homeSteps = pieces[j]->direction > 0? 57 - pieces[j]->steps : 59 - pieces[j]->steps;
+                printf("%s -> In home straight: H%d\n",pieces[i]->pieceId, homeSteps);
+
+            }else{ //When the piece is moving in the standard cells
+                printf("%s -> L%d\n",pieces[i]->pieceId, pieces[i]->location); 
+            }
+        }
+        printf("\n\n");
+
+    }
+
+    if(roundCounter >=2){
+        int remainingRounds = 4 - ((roundCounter - 2)% 4);
+        printf("The mystery cell is at L%d and will be at that location for the next %d rounds\n\n", mysteryCellLocation, remainingRounds);
+    }
 }
 
 
@@ -382,7 +417,8 @@ bool canMove(struct Piece *piece, int steps){
 
 
 //Checks if the opponents have created a block and whether the piece cqn move forward or not
-bool isPathBlocked(){
+bool isPathBlocked(struct Piece *piece){
+
     return false;
 }
 
@@ -405,8 +441,6 @@ void movePiece(int steps, struct Piece *piece, char color[10]){
     if((piece->direction < 0 && piece->steps >53 && piece->captures > 0 && !piece->isAtHome) || (piece->direction > 0 && piece->steps >51 && piece->captures > 0 && !piece->isAtHome)){
         
         piece->location = 500; //Takes pieces in the home straight out of the standard cells
-
-        printf("%s has moved by %d\n", piece->pieceId, piece->steps); //Remove
 
         if((piece->direction < 0 && piece->steps == 59 && !piece->isAtHome) || (piece->direction > 0 && piece->steps == 57 && !piece->isAtHome)){
 
@@ -973,8 +1007,6 @@ void capturePiece(struct Player *players[4], struct Player *currentPlayer, int s
                         opponentPieces[k]->isInBlock = false;
                         opponentPieces[k]->direction = 1;
 
-                        testCaptures +=1; //Remove this
-
                         return;
                     }
                 }
@@ -1112,7 +1144,7 @@ void bluePlayerBehaviour(struct Player *blue, int consecutiveSixes, struct Playe
         //Checks of the player can move to the mystery cell
         bool canMoveToMysteryCell = (52 + playerPieces[currentBluePiece]->location + playerPieces[currentBluePiece]->direction * (int)(dieValue * playerPieces[currentBluePiece]->aura)) % 52 == mysteryCellLocation;
 
-        if(playerPieces[currentBluePiece]->direction > 0 && !playerPieces[currentBluePiece]->isAtBase || playerPieces[currentBluePiece]->direction < 0 && !playerPieces[currentBluePiece]->isAtBase && !canMoveToMysteryCell){
+        if(playerPieces[currentBluePiece]->direction > 0 && !playerPieces[currentBluePiece]->isAtBase || playerPieces[currentBluePiece]->direction < 0 && !playerPieces[currentBluePiece]->isAtBase && !canMoveToMysteryCell && canMove(playerPieces[currentBluePiece], dieValue)){
 
             moveOrCapture(dieValue, playerPieces[currentBluePiece], blue->color, players);
             currentBluePiece = (currentBluePiece +1) % 4;
@@ -1128,7 +1160,7 @@ void bluePlayerBehaviour(struct Player *blue, int consecutiveSixes, struct Playe
     }else{
         bool canMoveToMysteryCell = (52 + playerPieces[currentBluePiece]->location + playerPieces[currentBluePiece]->direction * (int)(dieValue * playerPieces[currentBluePiece]->aura)) % 52 == mysteryCellLocation;
 
-        if(playerPieces[currentBluePiece]->direction > 0 && !playerPieces[currentBluePiece]->isAtBase || playerPieces[currentBluePiece]->direction < 0 && !playerPieces[currentBluePiece]->isAtBase && !canMoveToMysteryCell){
+        if(playerPieces[currentBluePiece]->direction > 0 && !playerPieces[currentBluePiece]->isAtBase || playerPieces[currentBluePiece]->direction < 0 && !playerPieces[currentBluePiece]->isAtBase && !canMoveToMysteryCell && canMove(playerPieces[currentBluePiece], dieValue) ){
 
             moveOrCapture(dieValue, playerPieces[currentBluePiece], blue->color, players);
             currentBluePiece = (currentBluePiece +1) % 4;
@@ -1409,13 +1441,18 @@ void startGame(
                     
                     isGameOver = true;
                     printf("%s player has won!!!\n", players[i]->color);
-                    break;
+                    return;
             }
         }
         
         //Incrementing the round counter when all the 4 players can taken their turns
         roundCounter = turnCounter%4 ==0? roundCounter+1 : roundCounter;
 
+        //Printing the stat at the end of every round
+        if(turnCounter%4 ==0){
+            printf("=======================================\n");
+            displayPlayerStats(players, roundCounter);
+        }
         updateMysterCell(roundCounter, players);
 
         
